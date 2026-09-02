@@ -26,7 +26,7 @@ logger = logging.getLogger("SocialAutopilot")
 
 
 def get_bengali_font_path() -> str:
-    """Find and return an installed Bengali font for macOS and Linux."""
+    """Find and return an installed Bengali/Unicode font for macOS and Linux."""
     candidate_paths = [
         # macOS Fonts
         "/System/Library/Fonts/KohinoorBangla.ttc",
@@ -68,6 +68,13 @@ def get_active_persona() -> str:
     return "personal"
 
 
+def get_tts_voice(lang: str = "en") -> str:
+    """Returns optimal neural TTS voice based on target language."""
+    if lang.lower() in ["bn", "bangla", "bengali"]:
+        return os.getenv("DEFAULT_BENGALI_TTS_VOICE", "bn-BD-PradeepNeural")
+    return os.getenv("DEFAULT_ENGLISH_TTS_VOICE", "en-US-ChristopherNeural")
+
+
 @dataclass
 class AccountConfig:
     key: str
@@ -81,6 +88,9 @@ class AccountConfig:
 
 @dataclass
 class Settings:
+    # Language Configuration: English is system default, Bengali is optional
+    DEFAULT_LANGUAGE: str = os.getenv("DEFAULT_LANGUAGE", "en").lower()
+
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
     GEMINI_TEMPERATURE: float = float(os.getenv("GEMINI_TEMPERATURE", "0.3"))
@@ -103,7 +113,7 @@ class Settings:
     ENABLE_INSTAGRAM: bool = os.getenv("ENABLE_INSTAGRAM", "false").lower() in ["true", "1", "yes"]
 
     # Voice and Font
-    TTS_VOICE: str = os.getenv("DEFAULT_TTS_VOICE", "bn-BD-PradeepNeural")
+    TTS_VOICE: str = get_tts_voice(os.getenv("DEFAULT_LANGUAGE", "en"))
     FONT_PATH: str = get_bengali_font_path()
 
 

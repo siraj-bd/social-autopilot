@@ -2,14 +2,15 @@ import asyncio
 import textwrap
 import edge_tts
 from pathlib import Path
+from typing import Optional
 from PIL import Image, ImageDraw, ImageFont
 from mutagen.mp3 import MP3
 from moviepy import ImageClip, AudioFileClip, concatenate_videoclips
-from config import settings, OUTPUT_DIR, logger
+from config import settings, OUTPUT_DIR, logger, get_tts_voice
 
 
 def _get_font(size: int) -> ImageFont.FreeTypeFont:
-    """Helper to safely load Bengali font or fallback to default."""
+    """Helper to safely load Bengali/Unicode font or fallback to default."""
     try:
         return ImageFont.truetype(settings.FONT_PATH, size)
     except Exception as e:
@@ -17,8 +18,8 @@ def _get_font(size: int) -> ImageFont.FreeTypeFont:
         return ImageFont.load_default()
 
 
-def create_image_card(title: str, badge: str, bullets: list, filename: str = "card.png") -> Path:
-    """Renders a modern, professional 1080x1080 Bengali social graphic card."""
+def create_image_card(title: str, badge: str, bullets: list, filename: str = "card.png", lang: str = "en") -> Path:
+    """Renders a modern, professional 1080x1080 social graphic card in English or Bengali."""
     out_path = OUTPUT_DIR / filename
     width, height = 1080, 1080
     img = Image.new("RGB", (width, height), color=(15, 23, 42))  # slate-900
@@ -33,15 +34,16 @@ def create_image_card(title: str, badge: str, bullets: list, filename: str = "ca
     draw.rectangle([0, 0, width, 8], fill=(59, 130, 246))
 
     # Badge Pill (Top-Left)
-    badge_text = f"• {badge.strip()} •" if badge else "• গাইড •"
-    draw.rounded_rectangle([70, 65, 360, 120], radius=12, fill=(37, 99, 235))
+    default_badge = "Guide" if lang == "en" else "গাইড"
+    badge_text = f"• {badge.strip()} •" if badge else f"• {default_badge} •"
+    draw.rounded_rectangle([70, 65, 380, 120], radius=12, fill=(37, 99, 235))
     draw.text((95, 78), badge_text, font=font_badge, fill=(255, 255, 255))
 
     # Watermark Top-Right
     draw.text((720, 80), "Social Autopilot", font=font_footer, fill=(100, 116, 139))
 
     # Main Title (Wrapped)
-    wrapped_title = textwrap.fill(title, width=28)
+    wrapped_title = textwrap.fill(title, width=32 if lang == "en" else 28)
     draw.text((70, 160), wrapped_title, font=font_title, fill=(248, 250, 252), spacing=14)
 
     # Decorative separator line
@@ -65,7 +67,7 @@ def create_image_card(title: str, badge: str, bullets: list, filename: str = "ca
         draw.text((114, y_offset + 50), str(idx + 1), font=font_badge, fill=(255, 255, 255))
 
         # Bullet text
-        wrapped_bullet = textwrap.fill(bullet, width=38)
+        wrapped_bullet = textwrap.fill(bullet, width=44 if lang == "en" else 38)
         draw.text((175, y_offset + 36), wrapped_bullet, font=font_body, fill=(241, 245, 249), spacing=8)
 
         y_offset += card_height + 25
@@ -80,25 +82,26 @@ def create_image_card(title: str, badge: str, bullets: list, filename: str = "ca
     return out_path
 
 
-async def generate_voiceover_async(text: str, filename: str = "voiceover.mp3") -> Path:
-    """Synthesizes high quality Bengali neural voiceover using Edge TTS."""
+async def generate_voiceover_async(text: str, filename: str = "voiceover.mp3", lang: str = "en") -> Path:
+    """Synthesizes high quality neural voiceover using Edge TTS in English or Bengali."""
     out_path = OUTPUT_DIR / filename
     cleaned_text = text.replace("\n", " ").strip()
     if not cleaned_text:
-        cleaned_text = "সোশ্যাল অটোপাইলট স্বয়ংক্রিয় কন্টেন্ট জেনারেশন।"
+        cleaned_text = "Social Autopilot automated content generation." if lang == "en" else "সোশ্যাল অটোপাইলট স্বয়ংক্রিয় কন্টেন্ট জেনারেশন।"
 
-    communicate = edge_tts.Communicate(cleaned_text, settings.TTS_VOICE)
+    voice = get_tts_voice(lang)
+    communicate = edge_tts.Communicate(cleaned_text, voice)
     await communicate.save(str(out_path))
-    logger.info(f"ভয়েসওভার সফলভাবে তৈরি হয়েছে: {out_path}")
+    logger.info(f"ভয়েসওভার সফলভাবে তৈরি হয়েছে ({voice}): {out_path}")
     return out_path
 
 
-def generate_voiceover(text: str, filename: str = "voiceover.mp3") -> Path:
+def generate_voiceover(text: str, filename: str = "voiceover.mp3", lang: str = "en") -> Path:
     """Synchronous wrapper for generate_voiceover_async."""
-    return asyncio.run(generate_voiceover_async(text, filename))
+    return asyncio.run(generate_voiceover_async(text, filename, lang))
 
 
-def create_vertical_video(title: str, slides: list, audio_path: Path, filename: str = "short.mp4") -> Path:
+def create_vertical_video(title: str, slides: list, audio_path: Path, filename: str = "short.mp4", lang: str = "en") -> Path:
     """Renders 1080x1920 portrait vertical video (9:16 Shorts/Reels) synchronized with voiceover."""
     out_video_path = OUTPUT_DIR / filename
     
@@ -106,7 +109,8 @@ def create_vertical_video(title: str, slides: list, audio_path: Path, filename: 
     audio_info = MP3(str(audio_path))
     total_duration = max(float(audio_info.info.length), 3.0)
     
-    slide_list = slides if slides else ["ভূমিকা ও প্রেক্ষাপট", "মূল আলোচনা", "সারসংক্ষেপ ও ফলাফল"]
+    default_slides = ["Overview & Context", "Core Analysis", "Key Takeaways"] if lang == "en" else ["ভূমিকা ও প্রেক্ষাপট", "মূল আলোচনা", "সারসংক্ষেপ ও ফলাফল"]
+    slide_list = slides if slides else default_slides
     num_slides = len(slide_list)
     slide_duration = total_duration / num_slides
 
@@ -127,7 +131,7 @@ def create_vertical_video(title: str, slides: list, audio_path: Path, filename: 
             draw.text((80, 100), "🔥 SOCIAL AUTOPILOT SHORTS", font=font_meta, fill=(56, 189, 248))
 
             # Main Topic Header
-            wrapped_title = textwrap.fill(title, width=26)
+            wrapped_title = textwrap.fill(title, width=30 if lang == "en" else 26)
             draw.text((80, 200), wrapped_title, font=font_title, fill=(255, 255, 255), spacing=16)
 
             # Center Card Container
@@ -142,12 +146,12 @@ def create_vertical_video(title: str, slides: list, audio_path: Path, filename: 
             )
 
             # Slide Step Indicator
-            step_str = f"ধাপ {idx + 1} / {num_slides}"
-            draw.rounded_rectangle([110, card_top + 40, 320, card_top + 100], radius=12, fill=(37, 99, 235))
-            draw.text((140, card_top + 52), step_str, font=font_meta, fill=(255, 255, 255))
+            step_str = f"Step {idx + 1} / {num_slides}" if lang == "en" else f"ধাপ {idx + 1} / {num_slides}"
+            draw.rounded_rectangle([110, card_top + 40, 340, card_top + 100], radius=12, fill=(37, 99, 235))
+            draw.text((135, card_top + 52), step_str, font=font_meta, fill=(255, 255, 255))
 
             # Slide Text Content
-            wrapped_slide = textwrap.fill(slide_text, width=28)
+            wrapped_slide = textwrap.fill(slide_text, width=32 if lang == "en" else 28)
             draw.text((110, card_top + 180), wrapped_slide, font=font_slide_text, fill=(241, 245, 249), spacing=22)
 
             # Bottom Progress Dots
@@ -157,7 +161,8 @@ def create_vertical_video(title: str, slides: list, audio_path: Path, filename: 
                 dot_color = (56, 189, 248) if d == idx else (71, 85, 105)
                 draw.ellipse([dot_x, 1720, dot_x + 20, 1740], fill=dot_color)
 
-            draw.text((80, 1800), "🔔 সাবস্ক্রাইব ও ফলো করে সাথে থাকুন", font=font_meta, fill=(148, 163, 184))
+            footer_cta = "🔔 Subscribe and follow for daily updates" if lang == "en" else "🔔 সাবস্ক্রাইব ও ফলো করে সাথে থাকুন"
+            draw.text((80, 1800), footer_cta, font=font_meta, fill=(148, 163, 184))
 
             temp_slide_path = OUTPUT_DIR / f"_temp_slide_{idx}.png"
             img.save(temp_slide_path, quality=95)

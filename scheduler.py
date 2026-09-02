@@ -4,7 +4,7 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Optional
-from config import BASE_DIR, logger
+from config import BASE_DIR, settings, logger
 from gemini_generator import generate_content
 from media_engine import create_image_card, generate_voiceover, create_vertical_video
 from publisher import publish_post
@@ -20,7 +20,8 @@ FIELDNAMES = [
     "status",
     "error_log",
     "recurrence",
-    "custom_caption"
+    "custom_caption",
+    "language"
 ]
 
 
@@ -32,38 +33,41 @@ def init_csv():
             {
                 "id": "101",
                 "publish_time": now_str,
-                "topic_title": "গার্মেন্টস লাইনে ব্যালেন্সিং টেকনিক",
-                "keywords_hashtags": "#RMG #LineBalancing #Production #Apparel",
+                "topic_title": "Garments Line Balancing Techniques & SAM Optimization",
+                "keywords_hashtags": "#RMG #LineBalancing #Production #IndustrialEngineering",
                 "content_type": "video",
                 "platforms": "facebook,linkedin",
                 "status": "pending",
                 "error_log": "",
                 "recurrence": "none",
-                "custom_caption": ""
+                "custom_caption": "",
+                "language": "en"
             },
             {
                 "id": "102",
                 "publish_time": now_str,
-                "topic_title": "পোশাক শিল্পে 5S বাস্তবায়ন ও সুবিধা",
+                "topic_title": "5S Implementation & Waste Reduction in Apparel Manufacturing",
                 "keywords_hashtags": "#Lean #5S #Manufacturing #Efficiency",
                 "content_type": "image",
                 "platforms": "facebook,linkedin",
                 "status": "pending",
                 "error_log": "",
                 "recurrence": "none",
-                "custom_caption": ""
+                "custom_caption": "",
+                "language": "en"
             },
             {
                 "id": "103",
                 "publish_time": now_str,
-                "topic_title": "স্মার্ট ফ্যাক্টরি ও অটোমেশনের প্রয়োজনীয়তা",
+                "topic_title": "Smart Factory Automation & Real-Time Production Tracking",
                 "keywords_hashtags": "#SmartFactory #Industry40 #Automation",
                 "content_type": "text_only",
                 "platforms": "facebook,linkedin",
                 "status": "pending",
                 "error_log": "",
                 "recurrence": "none",
-                "custom_caption": ""
+                "custom_caption": "",
+                "language": "en"
             }
         ]
         with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
@@ -83,6 +87,8 @@ def read_tasks() -> List[Dict[str, str]]:
         for r in reader:
             for field in FIELDNAMES:
                 r.setdefault(field, "")
+            if not r.get("language"):
+                r["language"] = settings.DEFAULT_LANGUAGE
             rows.append(r)
         return rows
 
@@ -93,10 +99,11 @@ def write_tasks(rows: List[Dict[str, str]]):
     with tempfile.NamedTemporaryFile("w", dir=temp_dir, delete=False, newline="", encoding="utf-8") as tf:
         writer = csv.DictWriter(tf, fieldnames=FIELDNAMES)
         writer.writeheader()
-        # Clean each row to conform strictly to FIELDNAMES
         cleaned_rows = []
         for r in rows:
             clean_r = {k: r.get(k, "") for k in FIELDNAMES}
+            if not clean_r.get("language"):
+                clean_r["language"] = settings.DEFAULT_LANGUAGE
             cleaned_rows.append(clean_r)
         writer.writerows(cleaned_rows)
         temp_name = tf.name
@@ -144,7 +151,7 @@ def process_pending_tasks():
     Checks schedule.csv against local time.
     Picks pending tasks whose publish_time has arrived,
     locks them to 'processing', triggers generation (or preserves custom text),
-    renders media, and publishes (or dumps to dry-run).
+    renders media (reusing 1 asset across accounts), and publishes.
     """
     if not CSV_FILE.exists():
         init_csv()
@@ -175,51 +182,57 @@ def process_pending_tasks():
             platforms = row.get("platforms", "facebook,linkedin")
             recurrence = row.get("recurrence", "none").strip().lower()
             custom_caption = row.get("custom_caption", "").strip()
+            lang = row.get("language", settings.DEFAULT_LANGUAGE).strip().lower() or settings.DEFAULT_LANGUAGE
 
             # Lock row status to 'processing'
             row["status"] = "processing"
             write_tasks(rows)
-            logger.info(f"⏳ [Task {task_id}] প্রসেসিং শুরু: {topic or 'কাস্টম পোস্ট'} ({content_type})")
+            logger.info(f"⏳ [Task {task_id}] প্রসেসিং শুরু: {topic or 'কাস্টম পোস্ট'} ({content_type}, Lang={lang})")
 
             try:
                 media_path = None
                 caption_payload = None
 
-                # FIX-1 & FIX-6: EXACT USER TEXT PRESERVATION ROUTING
+                # EXACT USER TEXT PRESERVATION ROUTING
                 if custom_caption:
                     logger.info(f"📝 [Task {task_id}] নির্দিষ্ট কাস্টম ক্যাপশন সংরক্ষিত হচ্ছে (Gemini জেনারেশন বাইপাস্ড)।")
                     caption_payload = custom_caption
 
                     if content_type == "image":
                         lines = [l.strip() for l in custom_caption.splitlines() if l.strip() and not l.startswith("#")]
-                        badge = "কাস্টম পোস্ট"
-                        bullets = lines[1:4] if len(lines) >= 4 else (lines[:3] if lines else ["মূল আলোচনা", "বাস্তবায়ন", "ফলাফল"])
-                        card_title = topic if topic else (lines[0][:35] if lines else "কাস্টম পোস্ট")
-                        media_path = create_image_card(card_title, badge, bullets, f"card_{task_id}.png")
+                        badge = "Custom Post" if lang == "en" else "কাস্টম পোস্ট"
+                        default_bullets = ["Key Insight", "Action Plan", "Results"] if lang == "en" else ["মূল আলোচনা", "বাস্তবায়ন", "ফলাফল"]
+                        bullets = lines[1:4] if len(lines) >= 4 else (lines[:3] if lines else default_bullets)
+                        card_title = topic if topic else (lines[0][:40] if lines else "Custom Post")
+                        media_path = create_image_card(card_title, badge, bullets, f"card_{task_id}.png", lang=lang)
 
                     elif content_type == "video":
                         voiceover_text = custom_caption
-                        audio_path = generate_voiceover(voiceover_text, f"voice_{task_id}.mp3")
+                        audio_path = generate_voiceover(voiceover_text, f"voice_{task_id}.mp3", lang=lang)
                         lines = [l.strip() for l in custom_caption.splitlines() if l.strip() and not l.startswith("#")]
-                        slides = lines[:3] if len(lines) >= 3 else ["ভূমিকা", "মূল আলোচনা", "সারসংক্ষেপ"]
-                        video_title = topic if topic else (lines[0][:35] if lines else "কাস্টম পোস্ট")
-                        media_path = create_vertical_video(video_title, slides, audio_path, f"video_{task_id}.mp4")
+                        default_slides = ["Introduction", "Core Points", "Summary"] if lang == "en" else ["ভূমিকা", "মূল আলোচনা", "সারসংক্ষেপ"]
+                        slides = lines[:3] if len(lines) >= 3 else default_slides
+                        video_title = topic if topic else (lines[0][:40] if lines else "Custom Post")
+                        media_path = create_vertical_video(video_title, slides, audio_path, f"video_{task_id}.mp4", lang=lang)
 
                 else:
-                    # Standard Keyword/Topic -> AI Content Generation
-                    content = generate_content(topic, keywords, content_type)
+                    # Standard Keyword/Topic -> AI Content Generation in Selected Language
+                    content = generate_content(topic, keywords, content_type, lang=lang)
                     caption_payload = content.get("platform_captions") or content.get("caption", f"{topic}\n\n{keywords}")
 
                     if content_type == "image":
-                        badge = content.get("badge", "গাইড")
-                        bullets = content.get("bullets", ["দক্ষতা বৃদ্ধি", "অপচয় হ্রাস", "সঠিক পর্যবেক্ষণ"])
-                        media_path = create_image_card(topic, badge, bullets, f"card_{task_id}.png")
+                        badge = content.get("badge", "Guide" if lang == "en" else "গাইড")
+                        default_bullets = ["Efficiency Gain", "Waste Reduction", "Quality Control"] if lang == "en" else ["দক্ষতা বৃদ্ধি", "অপচয় হ্রাস", "সঠিক পর্যবেক্ষণ"]
+                        bullets = content.get("bullets", default_bullets)
+                        media_path = create_image_card(topic, badge, bullets, f"card_{task_id}.png", lang=lang)
 
                     elif content_type == "video":
-                        voiceover_text = content.get("voiceover", f"{topic} নিয়ে আজকের আলোচনা।")
-                        audio_path = generate_voiceover(voiceover_text, f"voice_{task_id}.mp3")
-                        slides = content.get("slides", ["ভূমিকা", "মূল পয়েন্ট", "ফলাফল"])
-                        media_path = create_vertical_video(topic, slides, audio_path, f"video_{task_id}.mp4")
+                        default_voice = f"Today we discuss {topic} in detail." if lang == "en" else f"{topic} নিয়ে আজকের আলোচনা।"
+                        voiceover_text = content.get("voiceover", default_voice)
+                        audio_path = generate_voiceover(voiceover_text, f"voice_{task_id}.mp3", lang=lang)
+                        default_slides = ["Overview", "Key Steps", "Outcomes"] if lang == "en" else ["ভূমিকা", "মূল পয়েন্ট", "ফলাফল"]
+                        slides = content.get("slides", default_slides)
+                        media_path = create_vertical_video(topic, slides, audio_path, f"video_{task_id}.mp4", lang=lang)
 
                 # 3. Publish or Dry-Run Dump (Reusing single media_path across all accounts)
                 is_live, pub_message, per_account_results = publish_post(
@@ -247,7 +260,7 @@ def process_pending_tasks():
 
                 detailed_log = " ".join(account_summaries)
 
-                # FIX-2: RECURRING SCHEDULE SUPPORT
+                # RECURRING SCHEDULE SUPPORT
                 if recurrence in ["daily", "weekly", "hourly"]:
                     next_time = calculate_next_run(pub_time, recurrence)
                     row["publish_time"] = next_time
