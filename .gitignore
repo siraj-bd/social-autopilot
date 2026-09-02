@@ -1,0 +1,45 @@
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Secrets & Environment Variables (STRICTLY IGNORED)
+.env
+.env.*
+!.env.example
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Output media & generated content
+output/
+*.mp3
+*.mp4
+*.png
+*.jpg
+*.jpeg
+
+# Logs and runtime artifacts
+*.log
+autopilot.log
+autopilot.pid
+autopilot.stdout
+autopilot.stderr
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# IDE & Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,8 @@
+google-genai>=0.1.1
+edge-tts>=6.1.9
+moviepy>=2.0.0
+Pillow>=10.2.0
+apscheduler>=3.10.4
+requests>=2.31.0
+python-dotenv>=1.0.1
+mutagen>=1.47.0
