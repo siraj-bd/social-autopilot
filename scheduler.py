@@ -183,11 +183,12 @@ def process_pending_tasks():
 
             try:
                 media_path = None
+                caption_payload = None
 
                 # FIX-1 & FIX-6: EXACT USER TEXT PRESERVATION ROUTING
                 if custom_caption:
                     logger.info(f"📝 [Task {task_id}] নির্দিষ্ট কাস্টম ক্যাপশন সংরক্ষিত হচ্ছে (Gemini জেনারেশন বাইপাস্ড)।")
-                    caption = custom_caption
+                    caption_payload = custom_caption
 
                     if content_type == "image":
                         lines = [l.strip() for l in custom_caption.splitlines() if l.strip() and not l.startswith("#")]
@@ -207,7 +208,7 @@ def process_pending_tasks():
                 else:
                     # Standard Keyword/Topic -> AI Content Generation
                     content = generate_content(topic, keywords, content_type)
-                    caption = content.get("caption", f"{topic}\n\n{keywords}")
+                    caption_payload = content.get("platform_captions") or content.get("caption", f"{topic}\n\n{keywords}")
 
                     if content_type == "image":
                         badge = content.get("badge", "গাইড")
@@ -220,16 +221,31 @@ def process_pending_tasks():
                         slides = content.get("slides", ["ভূমিকা", "মূল পয়েন্ট", "ফলাফল"])
                         media_path = create_vertical_video(topic, slides, audio_path, f"video_{task_id}.mp4")
 
-                # 3. Publish or Dry-Run Dump
-                is_live, pub_message = publish_post(
+                # 3. Publish or Dry-Run Dump (Reusing single media_path across all accounts)
+                is_live, pub_message, per_account_results = publish_post(
                     task_id=task_id,
                     content_type=content_type,
-                    caption=caption,
+                    caption=caption_payload,
                     media_path=media_path,
                     platforms=platforms
                 )
 
                 exec_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                # Build readable per-platform log summary
+                account_summaries = []
+                for p_key, p_res in per_account_results.items():
+                    p_status = p_res.get("status", "unknown")
+                    if p_status == "posted":
+                        account_summaries.append(f"[{p_key}: posted ({p_res.get('post_url', 'OK')})]")
+                    elif p_status == "skipped":
+                        account_summaries.append(f"[{p_key}: skipped ({p_res.get('reason', 'OFF')})]")
+                    elif p_status == "failed":
+                        account_summaries.append(f"[{p_key}: failed ({p_res.get('error', 'Error')})]")
+                    elif p_status == "dry_run":
+                        account_summaries.append(f"[{p_key}: dry_run ({p_res.get('folder', 'saved')})]")
+
+                detailed_log = " ".join(account_summaries)
 
                 # FIX-2: RECURRING SCHEDULE SUPPORT
                 if recurrence in ["daily", "weekly", "hourly"]:
@@ -237,15 +253,15 @@ def process_pending_tasks():
                     row["publish_time"] = next_time
                     row["status"] = "pending"
                     status_prefix = "পাবলিশ সম্পন্ন" if is_live else "ড্রাফট তৈরি সম্পন্ন"
-                    row["error_log"] = f"{status_prefix}: {pub_message} ({exec_time}) | পরবর্তী শিডিউল: {next_time}"
+                    row["error_log"] = f"{status_prefix}: {detailed_log} ({exec_time}) | পরবর্তী শিডিউল: {next_time}"
                     logger.info(f"🔁 [Task {task_id}] রিকারিং টাস্ক পরবর্তী শিডিউলে সেট করা হয়েছে: {next_time}")
                 else:
                     if is_live:
                         row["status"] = "posted"
-                        row["error_log"] = f"পাবলিশ সম্পন্ন: {pub_message} ({exec_time})"
+                        row["error_log"] = f"পাবলিশ সম্পন্ন: {detailed_log} ({exec_time})"
                     else:
                         row["status"] = "posted (dry-run)"
-                        row["error_log"] = f"ড্রাফট তৈরি সম্পন্ন: {pub_message} ({exec_time})"
+                        row["error_log"] = f"ড্রাফট তৈরি সম্পন্ন: {detailed_log} ({exec_time})"
 
                 logger.info(f"🎉 [Task {task_id}] সফলভাবে সম্পন্ন হয়েছে ({row['status']})")
 

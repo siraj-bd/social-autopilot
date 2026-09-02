@@ -3,8 +3,8 @@ import shutil
 import requests
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
-from config import settings, OUTPUT_DIR, logger
+from typing import Optional, Dict, Union, Tuple, List
+from config import settings, OUTPUT_DIR, logger, get_platform_registry, normalize_platform_keys
 
 
 def dry_run_dump(task_id: str, payload: dict, media_path: Optional[Path] = None) -> Path:
@@ -34,14 +34,38 @@ def dry_run_dump(task_id: str, payload: dict, media_path: Optional[Path] = None)
 
 
 # ---------------------------------------------------------------------------
-# Meta Graph API Handlers (Facebook Page / Instagram)
+# Character Limit Pre-Validation
+# ---------------------------------------------------------------------------
+
+def validate_character_limit(caption: str, platform_key: str) -> None:
+    """
+    Validates that the caption strictly does not exceed the target platform limit.
+    Fails fast if exceeded without silent destructive truncation.
+    """
+    registry = get_platform_registry()
+    account_config = registry.get(platform_key)
+    if not account_config:
+        return
+
+    max_chars = account_config.max_characters
+    actual_len = len(caption)
+    if actual_len > max_chars:
+        raise ValueError(
+            f"[{account_config.name}] ক্যারেক্টার লিমিট অতিক্রম করেছে! "
+            f"অনুমোদিত: {max_chars} অক্ষর, বর্তমান ক্যাপশন: {actual_len} অক্ষর।"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Meta Graph API Handlers (Facebook Page / Instagram Business)
 # ---------------------------------------------------------------------------
 
 def publish_to_facebook_page(caption: str, content_type: str, media_path: Optional[Path] = None) -> dict:
-    """Publishes text, photo, or video to a Facebook Page via Graph API."""
+    """Publishes text, photo, or video to a Facebook Page via Graph API v19.0."""
     if not settings.META_PAGE_ID or not settings.META_ACCESS_TOKEN:
-        raise ValueError("META_PAGE_ID বা META_ACCESS_TOKEN অনুপস্থিত")
+        raise ValueError("META_PAGE_ID বা META_ACCESS_TOKEN অনুপস্থিত। .env ফাইলে কনফিগার করুন।")
 
+    validate_character_limit(caption, "facebook_page")
     base_url = f"https://graph.facebook.com/v19.0/{settings.META_PAGE_ID}"
 
     if content_type == "text_only" or not media_path:
@@ -65,12 +89,38 @@ def publish_to_facebook_page(caption: str, content_type: str, media_path: Option
     if resp.status_code >= 400 or "error" in resp_data:
         raise RuntimeError(f"Facebook Graph API ত্রুটি: {resp_data}")
 
-    logger.info(f"✅ Facebook-এ সফলভাবে পোস্ট হয়েছে! Post ID: {resp_data.get('id')}")
+    post_id = resp_data.get("id", "")
+    logger.info(f"✅ Facebook Page-এ সফলভাবে পোস্ট হয়েছে! Post ID: {post_id}")
+    resp_data["post_url"] = f"https://www.facebook.com/{post_id}" if post_id else ""
     return resp_data
 
 
+def publish_to_instagram(caption: str, content_type: str, media_path: Optional[Path] = None) -> dict:
+    """
+    Publishes image or video (Reels) to Instagram Business account via Meta Graph API container workflow.
+    Requires public URL or direct upload hosting.
+    """
+    if not settings.INSTAGRAM_ACCOUNT_ID or not settings.META_ACCESS_TOKEN:
+        raise ValueError("INSTAGRAM_ACCOUNT_ID বা META_ACCESS_TOKEN অনুপস্থিত।")
+
+    validate_character_limit(caption, "instagram")
+
+    if content_type == "text_only" or not media_path:
+        raise ValueError("Instagram টেক্সট-অনলি পোস্ট সাপোর্ট করে না। Image বা Video আবশ্যক।")
+
+    # Note: Instagram Graph API container endpoint requires publicly accessible media_url or direct upload
+    base_url = f"https://graph.facebook.com/v19.0/{settings.INSTAGRAM_ACCOUNT_ID}"
+    logger.info(f"ℹ️ Instagram Business কন্টেইনার তৈরি শুরু: Account {settings.INSTAGRAM_ACCOUNT_ID}")
+
+    # For local testing without public URL host, Instagram API expects hosted media URL
+    raise NotImplementedError(
+        "Instagram Graph API লোকাল ফাইল পাথের জন্য পাবলিক হোস্টেড মিডিয়া URL বা Graph Reshard আপলোড প্রত্যাশা করে। "
+        "অনুগ্রহ করে পাবলিক মিডিয়া হোস্টিং URL কনফিগার করুন।"
+    )
+
+
 # ---------------------------------------------------------------------------
-# LinkedIn REST API Handlers
+# LinkedIn REST API Handlers (Personal Profile vs Company Page)
 # ---------------------------------------------------------------------------
 
 def is_valid_urn(urn: str) -> bool:
@@ -80,16 +130,18 @@ def is_valid_urn(urn: str) -> bool:
     return urn.startswith("urn:li:person:") or urn.startswith("urn:li:organization:")
 
 
-def publish_to_linkedin(caption: str, content_type: str, media_path: Optional[Path] = None) -> dict:
-    """Publishes text or media to LinkedIn via UGC / REST API."""
-    if not settings.LINKEDIN_AUTHOR_URN or not settings.LINKEDIN_ACCESS_TOKEN:
+def _publish_to_linkedin_core(author_urn: str, caption: str, content_type: str, media_path: Optional[Path] = None, platform_key: str = "linkedin_personal") -> dict:
+    """Core UGC Publisher for LinkedIn Personal Profile or Company Organization."""
+    if not author_urn or not settings.LINKEDIN_ACCESS_TOKEN:
         raise ValueError("LINKEDIN_AUTHOR_URN বা LINKEDIN_ACCESS_TOKEN অনুপস্থিত")
 
-    if not is_valid_urn(settings.LINKEDIN_AUTHOR_URN):
+    if not is_valid_urn(author_urn):
         raise ValueError(
-            f"অকার্যকর LINKEDIN_AUTHOR_URN ('{settings.LINKEDIN_AUTHOR_URN}')। "
-            f"অনুগ্রহ করে .env ফাইলে প্লেসহোল্ডারের পরিবর্তে আপনার কোম্পানি পেজের আসল নিউমেরিক আইডি বসান (যেমন: urn:li:organization:12345678)"
+            f"LinkedIn URN কনফিগারেশন ত্রুটি ('{author_urn}')। "
+            f"অনুগ্রহ করে .env ফাইলে আসল নিউমেরিক আইডি বসান (যেমন: urn:li:organization:12345678 বা urn:li:person:MQzC-zOANk)"
         )
+
+    validate_character_limit(caption, platform_key)
 
     headers = {
         "Authorization": f"Bearer {settings.LINKEDIN_ACCESS_TOKEN}",
@@ -101,7 +153,7 @@ def publish_to_linkedin(caption: str, content_type: str, media_path: Optional[Pa
     if content_type == "text_only" or not media_path:
         url = "https://api.linkedin.com/v2/ugcPosts"
         payload = {
-            "author": settings.LINKEDIN_AUTHOR_URN,
+            "author": author_urn,
             "lifecycleState": "PUBLISHED",
             "specificContent": {
                 "com.linkedin.ugc.ShareContent": {
@@ -114,7 +166,7 @@ def publish_to_linkedin(caption: str, content_type: str, media_path: Optional[Pa
         resp = requests.post(url, headers=headers, json=payload, timeout=30)
         resp_data = resp.json() if resp.text else {"status": resp.status_code}
         if resp.status_code >= 400:
-            if resp.status_code == 403 and "organization" in settings.LINKEDIN_AUTHOR_URN:
+            if resp.status_code == 403 and "organization" in author_urn:
                 raise RuntimeError(
                     f"LinkedIn Company Page 403 Access Denied: {resp_data}। "
                     f"নিশ্চিত করুন যে আপনার লিঙ্কডইন অ্যাপে 'Community Management API' / 'w_organization_social' অনুমোদন রয়েছে এবং আপনি পেজটির অ্যাডমিন।"
@@ -122,7 +174,7 @@ def publish_to_linkedin(caption: str, content_type: str, media_path: Optional[Pa
             raise RuntimeError(f"LinkedIn API ত্রুটি: {resp_data}")
         post_id = resp_data.get("id", "")
         post_url = f"https://www.linkedin.com/feed/update/{post_id}/" if post_id else ""
-        logger.info(f"✅ LinkedIn-এ পোস্ট সফল হয়েছে! Post ID: {post_id}")
+        logger.info(f"✅ LinkedIn ({author_urn})-এ পোস্ট সফল হয়েছে! Post ID: {post_id}")
         if post_url:
             logger.info(f"🔗 LinkedIn Post URL: {post_url}")
         resp_data["post_url"] = post_url
@@ -137,17 +189,17 @@ def publish_to_linkedin(caption: str, content_type: str, media_path: Optional[Pa
     register_payload = {
         "registerUploadRequest": {
             "recipes": [recipe],
-            "owner": settings.LINKEDIN_AUTHOR_URN,
+            "owner": author_urn,
             "serviceRelationships": [{"relationshipType": "OWNER", "identifier": "urn:li:userGeneratedContent"}]
         }
     }
     reg_resp = requests.post(register_url, headers=headers, json=register_payload, timeout=30)
     reg_data = reg_resp.json()
     if reg_resp.status_code >= 400:
-        if reg_resp.status_code == 403 and "organization" in settings.LINKEDIN_AUTHOR_URN:
+        if reg_resp.status_code == 403 and "organization" in author_urn:
             raise RuntimeError(
                 f"LinkedIn Company Page Asset Registration 403 Access Denied: {reg_data}। "
-                f"নিশ্চিত করুন যে আপনার লিঙ্কডইন অ্যাপে 'w_organization_social' অনুমোদন রয়েছে এবং আপনি কোম্পানি পেজের অ্যাডমিন।"
+                f"নিশ্চিত করুন যে আপনার লিঙ্কডইন অ্যাপে 'w_organization_social' অনুমোদন রয়েছে।"
             )
         raise RuntimeError(f"LinkedIn Asset Registration ব্যর্থ: {reg_data}")
 
@@ -164,7 +216,7 @@ def publish_to_linkedin(caption: str, content_type: str, media_path: Optional[Pa
     post_url_endpoint = "https://api.linkedin.com/v2/ugcPosts"
     category = "IMAGE" if upload_type == "image" else "VIDEO"
     post_payload = {
-        "author": settings.LINKEDIN_AUTHOR_URN,
+        "author": author_urn,
         "lifecycleState": "PUBLISHED",
         "specificContent": {
             "com.linkedin.ugc.ShareContent": {
@@ -183,7 +235,7 @@ def publish_to_linkedin(caption: str, content_type: str, media_path: Optional[Pa
     resp = requests.post(post_url_endpoint, headers=headers, json=post_payload, timeout=30)
     resp_data = resp.json() if resp.text else {"status": resp.status_code}
     if resp.status_code >= 400:
-        if resp.status_code == 403 and "organization" in settings.LINKEDIN_AUTHOR_URN:
+        if resp.status_code == 403 and "organization" in author_urn:
             raise RuntimeError(
                 f"LinkedIn Company Page Media Post 403 Access Denied: {resp_data}। "
                 f"নিশ্চিত করুন যে আপনার লিঙ্কডইন অ্যাপে 'w_organization_social' অনুমোদন রয়েছে।"
@@ -192,37 +244,54 @@ def publish_to_linkedin(caption: str, content_type: str, media_path: Optional[Pa
 
     post_id = resp_data.get("id", "")
     post_url = f"https://www.linkedin.com/feed/update/{post_id}/" if post_id else ""
-    logger.info(f"✅ LinkedIn-এ মিডিয়া পোস্ট সফল হয়েছে! ID: {post_id}")
+    logger.info(f"✅ LinkedIn ({author_urn})-এ মিডিয়া পোস্ট সফল হয়েছে! ID: {post_id}")
     if post_url:
         logger.info(f"🔗 LinkedIn Post URL: {post_url}")
     resp_data["post_url"] = post_url
     return resp_data
 
 
+def publish_to_linkedin(caption: str, content_type: str, media_path: Optional[Path] = None) -> dict:
+    """Dispatches to LinkedIn Personal or Company based on configured URN."""
+    platform_key = "linkedin_company" if "organization" in settings.LINKEDIN_AUTHOR_URN else "linkedin_personal"
+    return _publish_to_linkedin_core(settings.LINKEDIN_AUTHOR_URN, caption, content_type, media_path, platform_key)
+
+
 # ---------------------------------------------------------------------------
-# Main Publisher Dispatcher with Automatic Dry-Run Fallback
+# Multi-Account Unified Publisher Dispatcher
 # ---------------------------------------------------------------------------
 
 def publish_post(
     task_id: str,
     content_type: str,
-    caption: str,
+    caption: Union[str, Dict[str, str]],
     media_path: Optional[Path] = None,
-    platforms: str = "facebook,linkedin",
+    platforms: str = "linkedin,facebook",
     dry_run: bool = False
-) -> tuple[bool, str]:
+) -> Tuple[bool, str, Dict[str, dict]]:
     """
-    Publishes post to targeted platforms.
-    If dry_run=True or credentials are missing/invalid, triggers Dry-Run Fallback Mode.
-    Returns: (is_live_posted, message)
+    Publishes content to all targeted and enabled social accounts.
+    Reuses the single generated media_path across all enabled accounts.
+    Uses platform-tailored captions while validating character limits.
+    Returns: (is_overall_success, summary_message, per_account_results)
     """
-    target_platforms = [p.strip().lower() for p in platforms.split(",") if p.strip()]
+    registry = get_platform_registry()
+    target_platform_keys = normalize_platform_keys(platforms)
+    per_account_results = {}
+
+    # Resolve caption map: supports single string or platform-specific dictionary
+    if isinstance(caption, dict):
+        caption_map = caption
+        master_caption = caption.get("master") or caption.get("linkedin_personal") or next(iter(caption.values()), "")
+    else:
+        master_caption = str(caption)
+        caption_map = {k: master_caption for k in registry.keys()}
 
     payload = {
         "task_id": str(task_id),
         "content_type": content_type,
-        "target_platforms": target_platforms,
-        "caption": caption,
+        "target_platforms": target_platform_keys,
+        "caption": master_caption,
         "media_file": media_path.name if media_path else None,
         "created_at": datetime.now().isoformat()
     }
@@ -231,54 +300,82 @@ def publish_post(
     if dry_run:
         logger.info(f"🧪 [Dry-Run] টেস্ট মোড সক্রিয়। লাইভ এপিআই কল সম্পূর্ণ বন্ধ রেখে Task {task_id}-এর জন্য ড্রাফট ডাম্প হচ্ছে।")
         dump_dir = dry_run_dump(task_id, payload, media_path)
-        return False, f"ড্রাফট সংরক্ষিত ({dump_dir.name})"
+        for key in target_platform_keys:
+            per_account_results[key] = {"status": "dry_run", "folder": str(dump_dir.name)}
+        return False, f"ড্রাফট সংরক্ষিত ({dump_dir.name})", per_account_results
 
-    has_meta = bool(settings.META_ACCESS_TOKEN and settings.META_PAGE_ID)
-    has_linkedin = bool(settings.LINKEDIN_ACCESS_TOKEN and settings.LINKEDIN_AUTHOR_URN)
+    success_accounts = []
+    error_accounts = []
 
-    # If neither platform has credentials configured, fallback directly to Dry-Run
-    if not has_meta and not has_linkedin:
-        logger.info(f"[Dry-Run] সোশ্যাল মিডিয়া ক্রেডেনশিয়াল অনুপস্থিত। Task {task_id}-এর জন্য অফলাইন ড্রাফট ডাম্প হচ্ছে।")
-        dump_dir = dry_run_dump(task_id, payload, media_path)
-        return False, f"ড্রাফট সংরক্ষিত ({dump_dir.name})"
+    for platform_key in target_platform_keys:
+        account_config = registry.get(platform_key)
+        if not account_config:
+            continue
 
-    published_targets = []
-    errors = []
+        # Check Account ON/OFF Toggle
+        if not account_config.enabled:
+            logger.info(f"ℹ️ [{account_config.name}] নিষ্ক্রিয় (OFF) থাকায় কোনো এপিআই রিকোয়েস্ট পাঠানো হয়নি।")
+            per_account_results[platform_key] = {"status": "skipped", "reason": "Account toggled OFF"}
+            continue
 
-    if "facebook" in target_platforms:
-        if has_meta:
-            try:
-                res_fb = publish_to_facebook_page(caption, content_type, media_path)
-                published_targets.append(f"Facebook (ID: {res_fb.get('id', 'OK')})")
-            except Exception as e:
-                logger.error(f"Facebook পাবলিশ ব্যর্থ: {e}")
-                errors.append(f"Facebook: {e}")
-        else:
-            errors.append("Facebook credentials missing")
+        # Get tailored caption for this specific account
+        account_caption = caption_map.get(platform_key, master_caption)
 
-    if "linkedin" in target_platforms:
-        if has_linkedin:
-            try:
-                res_li = publish_to_linkedin(caption, content_type, media_path)
-                post_url = res_li.get("post_url", "")
-                if post_url:
-                    published_targets.append(f"LinkedIn ({post_url})")
-                else:
-                    published_targets.append(f"LinkedIn (ID: {res_li.get('id', 'OK')})")
-            except Exception as e:
-                logger.error(f"LinkedIn পাবলিশ ব্যর্থ: {e}")
-                errors.append(f"LinkedIn: {e}")
-        else:
-            errors.append("LinkedIn credentials missing")
+        try:
+            # 1. Validate character limit before making API call
+            validate_character_limit(account_caption, platform_key)
 
-    if published_targets:
-        success_msg = f"সফলভাবে পোস্ট হয়েছে: {', '.join(published_targets)}"
-        if errors:
-            success_msg += f" (সতর্কতা: {'; '.join(errors)})"
-        return True, success_msg
+            # 2. Dispatch to specific account handler
+            if platform_key == "linkedin_personal":
+                res = _publish_to_linkedin_core(
+                    author_urn=settings.LINKEDIN_AUTHOR_URN if "person" in settings.LINKEDIN_AUTHOR_URN else "",
+                    caption=account_caption,
+                    content_type=content_type,
+                    media_path=media_path,
+                    platform_key="linkedin_personal"
+                )
+                post_url = res.get("post_url", "")
+                success_accounts.append(f"LinkedIn Personal ({post_url})")
+                per_account_results[platform_key] = {"status": "posted", "post_id": res.get("id"), "post_url": post_url}
 
-    # If publishing failed on all intended channels, fallback to dry-run dump without crashing
-    logger.warning(f"লাইভ পাবলিশিং সম্ভব হয়নি ({'; '.join(errors)})। ড্রাফট ডাম্প তৈরি হচ্ছে...")
-    payload["errors"] = errors
+            elif platform_key == "linkedin_company":
+                res = _publish_to_linkedin_core(
+                    author_urn=settings.LINKEDIN_AUTHOR_URN if "organization" in settings.LINKEDIN_AUTHOR_URN else "",
+                    caption=account_caption,
+                    content_type=content_type,
+                    media_path=media_path,
+                    platform_key="linkedin_company"
+                )
+                post_url = res.get("post_url", "")
+                success_accounts.append(f"LinkedIn Company ({post_url})")
+                per_account_results[platform_key] = {"status": "posted", "post_id": res.get("id"), "post_url": post_url}
+
+            elif platform_key == "facebook_page":
+                res = publish_to_facebook_page(account_caption, content_type, media_path)
+                post_url = res.get("post_url", "")
+                success_accounts.append(f"Facebook Page ({post_url or res.get('id')})")
+                per_account_results[platform_key] = {"status": "posted", "post_id": res.get("id"), "post_url": post_url}
+
+            elif platform_key == "instagram":
+                res = publish_to_instagram(account_caption, content_type, media_path)
+                success_accounts.append(f"Instagram ({res.get('id')})")
+                per_account_results[platform_key] = {"status": "posted", "post_id": res.get("id")}
+
+        except Exception as e:
+            logger.error(f"❌ [{account_config.name}] পাবলিশ ব্যর্থ: {e}")
+            error_accounts.append(f"{account_config.name}: {e}")
+            per_account_results[platform_key] = {"status": "failed", "error": str(e)}
+
+    # Determine overall status
+    if success_accounts:
+        summary_msg = f"সফলভাবে পোস্ট হয়েছে: {', '.join(success_accounts)}"
+        if error_accounts:
+            summary_msg += f" | সতর্কতা: {'; '.join(error_accounts)}"
+        return True, summary_msg, per_account_results
+
+    # If all targeted accounts failed or skipped, fallback to dry-run dump without crashing
+    logger.warning(f"কোনো অ্যাকাউন্টে লাইভ পাবলিশ সম্ভব হয়নি ({'; '.join(error_accounts)})। ড্রাফট ডাম্প তৈরি হচ্ছে...")
+    payload["errors"] = error_accounts
+    payload["per_account_results"] = per_account_results
     dump_dir = dry_run_dump(task_id, payload, media_path)
-    return False, f"ড্রাফট সংরক্ষিত ({dump_dir.name})"
+    return False, f"ড্রাফট সংরক্ষিত ({dump_dir.name})", per_account_results

@@ -68,10 +68,10 @@ def test_dry_run(content_type: str = "image"):
             filename="test_run_short.mp4"
         )
 
-    is_live, msg = publish_post(
+    is_live, msg, _ = publish_post(
         task_id="TEST_RUN",
         content_type=content_type,
-        caption=content.get("caption", ""),
+        caption=content.get("platform_captions") or content.get("caption", ""),
         media_path=media_path,
         platforms="facebook,linkedin",
         dry_run=True
@@ -88,7 +88,7 @@ def publish_now(
     caption: Optional[str] = None
 ):
     """
-    Instantly publishes content to configured platforms (e.g. LinkedIn).
+    Instantly publishes content to configured platforms (e.g. LinkedIn, Facebook).
     If custom caption is passed, preserves exact text and bypasses AI rewriting.
     """
     persona = settings.PROFILE_TYPE
@@ -103,11 +103,13 @@ def publish_now(
     print("=" * 70 + "\n")
 
     media_path = None
+    caption_payload = None
     task_id = f"LIVE_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
     # FIX-1 & FIX-6: EXACT USER TEXT PRESERVATION
     if caption:
         final_caption = caption.strip()
+        caption_payload = final_caption
         logger.info("📝 নির্দিষ্ট কাস্টম ক্যাপশন বজায় রেখে পোস্ট করা হচ্ছে (Gemini জেনারেশন বাইপাস্ড)।")
 
         if content_type == "image":
@@ -140,7 +142,7 @@ def publish_now(
 
         logger.info(f"কনটেন্ট জেনারেশন শুরু: {topic} ({content_type})")
         content = generate_content(topic, keywords, content_type)
-        final_caption = content.get("caption", f"{topic}\n\n{keywords}")
+        caption_payload = content.get("platform_captions") or content.get("caption", f"{topic}\n\n{keywords}")
 
         if content_type == "image":
             badge = content.get("badge", "গাইড")
@@ -153,10 +155,10 @@ def publish_now(
             media_path = create_vertical_video(topic, slides, audio_path, f"live_video_{task_id}.mp4")
 
     # Live Publish (dry_run=False)
-    is_live, pub_message = publish_post(
+    is_live, pub_message, per_account_results = publish_post(
         task_id=task_id,
         content_type=content_type,
-        caption=final_caption,
+        caption=caption_payload,
         media_path=media_path,
         platforms=platforms,
         dry_run=False

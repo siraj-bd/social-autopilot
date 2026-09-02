@@ -1,9 +1,10 @@
 import json
 import re
 from datetime import datetime
+from typing import Dict
 from google import genai
 from google.genai import types
-from config import settings, logger
+from config import settings, logger, get_platform_registry
 
 # Initialize client only if GEMINI_API_KEY is available
 client = genai.Client(api_key=settings.GEMINI_API_KEY) if settings.GEMINI_API_KEY else None
@@ -56,167 +57,133 @@ def _clean_json_string(raw: str) -> str:
     return raw
 
 
+def build_platform_captions(master_caption: str, topic: str, keywords: str, persona: str) -> Dict[str, str]:
+    """
+    Constructs platform-optimized captions respecting each platform's character limit and audience tone.
+    """
+    time_tag = datetime.now().strftime("%d %b %Y, %I:%M %p")
+    registry = get_platform_registry()
+
+    # Base elements
+    clean_topic = topic.strip()
+    clean_kw = keywords.strip() if keywords else "#ApparelManufacturing #IndustrialEngineering"
+
+    # 1. LinkedIn Personal (max 3000 chars): Leadership, analytical breakdown, structured takeaways
+    li_personal = (
+        f"💼 [Manufacturing Leader Insights] {clean_topic}\n\n"
+        f"{master_caption}\n\n"
+        f"🎯 বাস্তবসম্মত টেকঅ্যাওয়ে:\n"
+        f"সঠিক মেথড স্টাডি ও ডেটা-ড্রিভেন ব্যালেন্সিং নিশ্চিত করলেই অপচয় ও বটলনেক দূর করা সম্ভব।\n\n"
+        f"🗓️ {time_tag}\n"
+        f"{clean_kw}"
+    )
+    if len(li_personal) > registry["linkedin_personal"].max_characters:
+        li_personal = li_personal[:registry["linkedin_personal"].max_characters - 10] + "..."
+
+    # 2. LinkedIn Company (max 3000 chars): Technical SOP, quality checklist, knowledge hub
+    li_company = (
+        f"🔍 [Apparel Sewing Process Technical Hub] {clean_topic}\n\n"
+        f"{master_caption}\n\n"
+        f"⚙️ স্ট্যান্ডার্ড অপারেটিং প্রসিডিউর (SOP) মেনে সুইং ফ্লোরে কোয়ালিটি ও উৎপাদনশীলতা নিশ্চিত করুন।\n\n"
+        f"🗓️ {time_tag}\n"
+        f"{clean_kw}"
+    )
+    if len(li_company) > registry["linkedin_company"].max_characters:
+        li_company = li_company[:registry["linkedin_company"].max_characters - 10] + "..."
+
+    # 3. Facebook Page (max 63206 chars): Engaging, community discussion, formatted with clear spacing
+    fb_caption = (
+        f"📢 {clean_topic}\n\n"
+        f"{master_caption}\n\n"
+        f"💬 আপনার ফ্যাক্টরি ফ্লোরে এই পদ্ধতি কীভাবে প্রয়োগ করছেন? আপনার মূল্যবান অভিজ্ঞতা কমেন্টে শেয়ার করুন।\n\n"
+        f"👉 নিয়মিত টেকনিক্যাল আপডেটের জন্য আমাদের পেজে লাইক ও ফলো দিয়ে সাথে থাকুন।\n\n"
+        f"{clean_kw}"
+    )
+    if len(fb_caption) > registry["facebook_page"].max_characters:
+        fb_caption = fb_caption[:registry["facebook_page"].max_characters - 10] + "..."
+
+    # 4. Instagram (max 2200 chars): Visual hook, compact paragraphs, focused hashtags
+    # Extract first 500 chars of body for high retention Instagram reading
+    body_short = master_caption[:600] if len(master_caption) > 600 else master_caption
+    ig_caption = (
+        f"✨ {clean_topic}\n\n"
+        f"{body_short}\n\n"
+        f"📌 সেভ করুন ভবিষ্যতের জন্য এবং শেয়ার করুন আপনার টিমের সাথে।\n\n"
+        f"{clean_kw}"
+    )
+    if len(ig_caption) > registry["instagram"].max_characters:
+        ig_caption = ig_caption[:registry["instagram"].max_characters - 10] + "..."
+
+    return {
+        "linkedin_personal": li_personal,
+        "linkedin_company": li_company,
+        "facebook_page": fb_caption,
+        "instagram": ig_caption
+    }
+
+
 def get_fallback_content(topic_title: str, keywords: str, content_type: str, persona: str) -> dict:
     """Provides high-depth, persona-specific Bengali fallback content matching structured guidelines."""
+    time_tag = datetime.now().strftime("%d %b %Y, %I:%M %p")
+
     if persona == "company":
         default_tags = "#ApparelSewingProcess #GarmentTechnology #SewingMethods #QualityControl #RMGIndustry"
         badge = "সেলাই ও কোয়ালিটি গাইড"
-        
-        if content_type == "video":
-            return {
-                "caption": (
-                    f"🧵 [Apparel Sewing Process] {topic_title}\n\n"
-                    "পোশাক তৈরিতে সঠিক সেলাই পদ্ধতি ও মেশিনের সুনির্দিষ্ট সেটিং নিশ্চিত না করলে কোয়ালিটি ফল্ট এড়ানো অসম্ভব।\n\n"
-                    "⚙️ প্রসেস গাইডলাইন:\n"
-                    "• সঠিক সুই (Needle size) ও থ্রেড টেনশন নির্বাচন।\n"
-                    "• মেটেরিয়াল ফিডিং এবং প্রেসার ফুট প্রেসার অ্যাডজাস্টমেন্ট।\n"
-                    "• স্ট্যান্ডার্ড সিম এলাউন্স এবং সিম স্ট্রেন্থ মনিটরিং।\n\n"
-                    "💡 মূল টেকঅ্যাওয়ে:\n"
-                    "সঠিক প্রসেস ফলো করলে সিম পাকার বা স্কিপ স্টিচ ৯০% পর্যন্ত কমানো সম্ভব।\n\n"
-                    f"{keywords or default_tags}"
-                ),
-                "voiceover": (
-                    f"স্বাগতম অ্যাপারেল সুইং প্রসেস টেকনিক্যাল গাইডে। আজকের আলোচনার বিষয় {topic_title}। "
-                    "পোশাক শিল্পে সেলাইয়ের নিখুঁত মান বজায় রাখতে হলে মেশিন মেকানিজম ও ফ্যাব্রিক ক্যারেক্টার বোঝা অত্যন্ত জরুরি। "
-                    "সঠিক সুঁই, সুতার টেনশন এবং ফিড মেকানিজমের সমন্বয় রক্ষা করুন। বিস্তারিত জানতে আমাদের সাথেই থাকুন।"
-                ),
-                "slides": [
-                    "১. সুই ও থ্রেড টেনশন অ্যাডজাস্টমেন্ট",
-                    "২. সিম কোয়ালিটি ও ফল্ট প্রিভেনশন",
-                    "৩. স্ট্যান্ডার্ড অপারেটিং প্রসিডিউর (SOP)"
-                ],
-                "badge": badge,
-                "bullets": [
-                    "সঠিক নিডল ও টেনশন সেটিং",
-                    "স্কিপ স্টিচ ও পাকার প্রতিরোধ",
-                    "স্ট্যান্ডার্ড সিম কোয়ালিটি"
-                ]
-            }
-        elif content_type == "image":
-            return {
-                "caption": (
-                    f"📐 [Apparel Sewing Process] {topic_title}\n\n"
-                    "গার্মেন্টস সুইং ফ্লোরে নিখুঁত কোয়ালিটি এবং স্ট্যান্ডার্ড মেথড বজায় রাখার জন্য নিচে ৩টি আবশ্যকীয় নিয়ম তুলে ধরা হলো:\n\n"
-                    "১. নিডল-থ্রেড কম্প্যাটিবিলিটি যাচাই।\n"
-                    "২. সঠিক অ্যাটাচমেন্ট এবং ফোল্ডারের ব্যবহার।\n"
-                    "৩. ইন-লাইন চেকপয়েন্টে ফার্স্ট-টাইম-রাইট কোয়ালিটি নিশ্চিতকরণ।\n\n"
-                    f"{keywords or default_tags}"
-                ),
-                "voiceover": f"অ্যাপারেল সুইং প্রসেস: {topic_title} সম্পর্কিত গুরুত্বপূর্ণ টেকনিক্যাল তথ্য।",
-                "slides": ["প্রসেস ওভারভিউ", "মেশিন সেটিং", "কোয়ালিটি চেক"],
-                "badge": badge,
-                "bullets": [
-                    "নিডল-থ্রেড ম্যাচিং নিশ্চিতকরণ",
-                    "অ্যাটাচমেন্ট ও ফোল্ডার ব্যবহার",
-                    "ইন-লাইন ফার্স্ট-টাইম-রাইট"
-                ]
-            }
-        else:  # text_only
-            time_tag = datetime.now().strftime("%d %b %Y, %I:%M %p")
-            return {
-                "caption": (
-                    f"🔍 [Apparel Sewing Process Technical Breakdown]\n\n"
-                    f"📌 বিষয়: {topic_title}\n\n"
-                    "পোশাক শিল্পে উৎপাদনের ধারাবাহিকতা এবং বায়ার রিকোয়ারমেন্ট অনুযায়ী গুণগত মান অর্জনে সুইং মেথডলজি সবচেয়ে সংবেদনশীল ভূমিকা রাখে।\n\n"
-                    "🔹 ১. মেশিন স্পেসিফিকেশন ও গেজ সেটআপ:\n"
-                    "ফ্যাব্রিকের জিএসএম ও কনস্ট্রাকশন অনুযায়ী নিডল পয়েন্ট (SPI, Ball point / SES) নির্বাচন করুন।\n\n"
-                    "🔹 ২. সিম ফল্ট প্রিভেনশন:\n"
-                    "সিম পাকার, ওপেন সিম ও থ্রেড ব্রেকিং প্রতিরোধে ফিড ডগ হাইট এবং থ্রেড রুট সঠিক রাখুন।\n\n"
-                    "🔹 ৩. স্ট্যান্ডার্ড মেথড ও অপারেটর গাইডেন্স:\n"
-                    "ক্রিটিক্যাল অপারেশনে ফোল্ডার বা জিগ ব্যবহার করে হ্যান্ডেলিং টাইম কমান এবং সেলাই নিখুঁত করুন।\n\n"
-                    "🎯 টেকঅ্যাওয়ে:\n"
-                    "প্রতিটি সুইং লাইনে মেথড ড্রাইভেন কালচার নিশ্চিত করলেই রি-ওয়ার্ক ও ডিএইচইউ শূন্যের কোঠায় নামিয়ে আনা সম্ভব।\n\n"
-                    f"🗓️ {time_tag}\n"
-                    f"{keywords or default_tags}"
-                ),
-                "voiceover": "",
-                "slides": [],
-                "badge": badge,
-                "bullets": []
-            }
+        master_caption = (
+            "পোশাক শিল্পে উৎপাদনের ধারাবাহিকতা এবং বায়ার রিকোয়ারমেন্ট অনুযায়ী গুণগত মান অর্জনে সুইং মেথডলজি সবচেয়ে সংবেদনশীল ভূমিকা রাখে।\n\n"
+            "🔹 ১. মেশিন স্পেসিফিকেশন ও গেজ সেটআপ:\n"
+            "ফ্যাব্রিকের জিএসএম ও কনস্ট্রাকশন অনুযায়ী নিডল পয়েন্ট (SPI, Ball point / SES) নির্বাচন করুন।\n\n"
+            "🔹 ২. সিম ফল্ট প্রিভেনশন:\n"
+            "সিম পাকার, ওপেন সিম ও থ্রেড ব্রেকিং প্রতিরোধে ফিড ডগ হাইট এবং থ্রেড রুট সঠিক রাখুন।\n\n"
+            "🔹 ৩. স্ট্যান্ডার্ড মেথড ও অপারেটর গাইডেন্স:\n"
+            "ক্রিটিক্যাল অপারেশনে ফোল্ডার বা জিগ ব্যবহার করে হ্যান্ডেলিং টাইম কমান এবং সেলাই নিখুঁত করুন।"
+        )
+        voiceover = (
+            f"স্বাগতম অ্যাপারেল সুইং প্রসেস টেকনিক্যাল গাইডে। আজকের আলোচনার বিষয় {topic_title}। "
+            "পোশাক শিল্পে সেলাইয়ের নিখুঁত মান বজায় রাখতে হলে মেশিন মেকানিজম ও ফ্যাব্রিক ক্যারেক্টার বোঝা অত্যন্ত জরুরি। "
+            "সঠিক সুঁই, সুতার টেনশন এবং ফিড মেকানিজমের সমন্বয় রক্ষা করুন।"
+        )
+        slides = ["১. সুই ও থ্রেড টেনশন অ্যাডজাস্টমেন্ট", "২. সিম কোয়ালিটি ও ফল্ট প্রিভেনশন", "৩. স্ট্যান্ডার্ড অপারেটিং প্রসিডিউর (SOP)"]
+        bullets = ["নিডল-থ্রেড ম্যাচিং নিশ্চিতকরণ", "অ্যাটাচমেন্ট ও ফোল্ডার ব্যবহার", "ইন-লাইন ফার্স্ট-টাইম-রাইট"]
 
     else:  # personal persona: 23+ years IE & Manufacturing Leader
         default_tags = "#ApparelManufacturing #IndustrialEngineering #LineBalancing #SAM #LeanManufacturing"
         badge = "আইই ও ব্যালেন্সিং"
+        master_caption = (
+            "গার্মেন্টস ফ্লোরে অনেকেই লাইন এফিসিয়েন্সি নিয়ে দুশ্চিন্তায় থাকেন, কিন্তু সমস্যার মূল প্রোডাকশন ফ্লোরে নয়—থাকে প্রাক-পরিকল্পনা ও ব্যালেন্সিং ড্রাফটে।\n\n"
+            "২৩+ বছরের ইন্ডাস্ট্রিয়াল অভিজ্ঞতা থেকে ৩টি ডেটা-ড্রিভেন টেকনিক্যাল পর্যবেক্ষণ:\n\n"
+            "🔹 ১. সাইকেল টাইম বনাম পিচ টাইম (Pitch Time vs Cycle Time):\n"
+            "লাইনের মোট SAM-কে ম্যানপাওয়ার দিয়ে ভাগ করে পিচ টাইম বের করুন। যেসব অপারেশনের সাইকেল টাইম পিচ টাইমের বেশি, সেখানেই বটলনেক তৈরি হয়।\n\n"
+            "🔹 ২. ওয়ার্ক-ইন-প্রগ্রেস (WIP) ব্যালেন্সিং:\n"
+            "অতিরিক্ত WIP এফিসিয়েন্সি বাড়ায় না, বরং বটলনেক লুকিয়ে রাখে। ৩-৪ পিসের বাফার রেখে সিঙ্গেল পিস ফ্লো কালচার তৈরি করুন।\n\n"
+            "🔹 ৩. মেথড স্টাডি ও মোশন ইকোনমি:\n"
+            "অপারেটরের অপ্রয়োজনীয় হাত ও চোখের মুভমেন্ট (NVA) দূর করলে প্রতিটি অপারেশনে ১০-১৫% সময় সাশ্রয় হয়।"
+        )
+        voiceover = (
+            f"{topic_title} নিয়ে আজকের টেকনিক্যাল আলোচনা। ইন্ডাস্ট্রিতে ২৩ বছরের বাস্তব অভিজ্ঞতা থেকে দেখেছি, "
+            "লাইনে ৫০ শতাংশের বেশি এফিসিয়েন্সি লস হয় ভুল ব্যালেন্সিং এবং নন-ভ্যালু অ্যাডেড কাজের কারণে। "
+            "আগে পিচ টাইম ক্যালকুলেট করুন, তারপর স্কিল অনুযায়ী ক্যাপাসিটি ম্যাচ করুন।"
+        )
+        slides = ["১. SAM ও পিচ টাইম বিশ্লেষণ", "২. বটলনেক ও ক্যাপাসিটি ম্যাচিং", "৩. স্কিল ম্যাট্রিক্স ও লাইন এফিসিয়েন্সি"]
+        bullets = ["পিচ টাইম ব্যালেন্স চার্ট", "অপ্রয়োজনীয় মোশন ও NVA রোধ", "আওয়ারলি মনিটরিং ও ব্যালেন্সিং"]
 
-        if content_type == "video":
-            return {
-                "caption": (
-                    f"🔥 {topic_title}\n\n"
-                    "গার্মেন্টস লাইনে অপচয় এবং বটলনেক দূর করার মূল চাবিকাঠি হলো ম্যাথমেটিক্যাল ব্যালেন্সিং। ২৩ বছরের বাস্তব অভিজ্ঞতা থেকে বলছি—"
-                    "শুধু টার্গেট দিলে লাইন চলে না, ট্যাক্ট টাইম ও পিচ টাইমের সঠিক সমন্বয় প্রয়োজন।\n\n"
-                    "📊 মূল ফোকাস:\n"
-                    "• বটলনেক অপারেশন শনাক্তকরণ ও ক্যাপাসিটি ব্যালেন্সিং।\n"
-                    "• অপারেটর স্কিল ম্যাট্রিক্স অনুযায়ী ওয়ার্ক স্টেশন রি-ডিস্ট্রিবিউশন।\n"
-                    "• পিচ টাইম ও সাইকেল টাইমের পার্থক্য ন্যূনতম পর্যায়ে নামিয়ে আনা।\n\n"
-                    f"{keywords or default_tags}"
-                ),
-                "voiceover": (
-                    f"{topic_title} নিয়ে আজকের টেকনিক্যাল আলোচনা। ইন্ডাস্ট্রিতে ২৩ বছরের বাস্তব অভিজ্ঞতা থেকে দেখেছি, "
-                    "লাইনে ৫০ শতাংশের বেশি এফিসিয়েন্সি লস হয় ভুল ব্যালেন্সিং এবং নন-ভ্যালু অ্যাডেড কাজের কারণে। "
-                    "আগে পিচ টাইম ক্যালকুলেট করুন, তারপর স্কিল অনুযায়ী ক্যাপাসিটি ম্যাচ করুন। বিস্তারিত দেখুন ভিডিওতে।"
-                ),
-                "slides": [
-                    "১. SAM ও পিচ টাইম বিশ্লেষণ",
-                    "২. বটলনেক ও ক্যাপাসিটি ম্যাচিং",
-                    "৩. স্কিল ম্যাট্রিক্স ও লাইন এফিসিয়েন্সি"
-                ],
-                "badge": badge,
-                "bullets": [
-                    "SAM ও পিচ টাইম নির্ধারণ",
-                    "বটলনেক অপচয় দূরীকরণ",
-                    "স্কিল ভিত্তিক ওয়ার্ক ডিস্ট্রিবিউশন"
-                ]
-            }
-        elif content_type == "image":
-            return {
-                "caption": (
-                    f"📈 {topic_title}\n\n"
-                    "২৩ বছরের ফ্যাক্টরি ম্যানেজমেন্ট অভিজ্ঞতায় একটি সত্য স্পষ্ট: লাইন ব্যালেন্সিং সঠিক হলে লাইনের এফিসিয়েন্সি ২০% পর্যন্ত রাতারাতি বাড়ানো সম্ভব।\n\n"
-                    "নিচের ৩টি প্রধান মেথডলজিকাল পয়েন্ট লাইনে বাস্তবায়ন করুন:\n\n"
-                    "১. সাইকেল টাইম ও পিচ টাইমের ব্যালেন্স চার্ট তৈরি।\n"
-                    "২. ওয়ার্ক স্টেশনে মেথড ইমপ্রুভমেন্ট (NVA এলিমিনেশন)।\n"
-                    "৩. রিয়েল-টাইম আওয়ারলি ট্র্যাকিং ও তাৎক্ষণিক অ্যাকশন।\n\n"
-                    f"{keywords or default_tags}"
-                ),
-                "voiceover": f"ইন্ডাস্ট্রিয়াল ইঞ্জিনিয়ারিং এক্সপার্ট গাইড: {topic_title}।",
-                "slides": ["SAM বিশ্লেষণ", "ক্যাপাসিটি ব্যালেন্স", "এফিসিয়েন্সি বৃদ্ধি"],
-                "badge": badge,
-                "bullets": [
-                    "পিচ টাইম ব্যালেন্স চার্ট",
-                    "অপ্রয়োজনীয় মোশন ও NVA রোধ",
-                    "আওয়ারলি মনিটরিং ও ব্যালেন্সিং"
-                ]
-            }
-        else:  # text_only
-            time_tag = datetime.now().strftime("%d %b %Y, %I:%M %p")
-            return {
-                "caption": (
-                    f"💼 [Manufacturing Leader Insights] {topic_title}\n\n"
-                    "গার্মেন্টস ফ্লোরে অনেকেই লাইন এফিসিয়েন্সি নিয়ে দুশ্চিন্তায় থাকেন, কিন্তু সমস্যার মূল প্রোডাকশন ফ্লোরে নয়—থাকে প্রাক-পরিকল্পনা ও ব্যালেন্সিং ড্রাফটে।\n\n"
-                    "২৩+ বছরের ইন্ডাস্ট্রিয়াল অভিজ্ঞতা থেকে ৩টি ডেটা-ড্রিভেন টেকনিক্যাল পর্যবেক্ষণ:\n\n"
-                    "🔹 ১. সাইকেল টাইম বনাম পিচ টাইম (Pitch Time vs Cycle Time):\n"
-                    "লাইনের মোট SAM-কে ম্যানপাওয়ার দিয়ে ভাগ করে পিচ টাইম বের করুন। যেসব অপারেশনের সাইকেল টাইম পিচ টাইমের বেশি, সেখানেই বটলনেক তৈরি হয়।\n\n"
-                    "🔹 ২. ওয়ার্ক-ইন-প্রগ্রেস (WIP) ব্যালেন্সিং:\n"
-                    "অতিরিক্ত WIP এফিসিয়েন্সি বাড়ায় না, বরং বটলনেক লুকিয়ে রাখে। ৩-৪ পিসের বাফার রেখে সিঙ্গেল পিস ফ্লো কালচার তৈরি করুন।\n\n"
-                    "🔹 ৩. মেথড স্টাডি ও মোশন ইকোনমি:\n"
-                    "অপারেটরের অপ্রয়োজনীয় হাত ও চোখের মুভমেন্ট (NVA) দূর করলে প্রতিটি অপারেশনে ১০-১৫% সময় সাশ্রয় হয়।\n\n"
-                    "🎯 বাস্তবসম্মত টেকঅ্যাওয়ে:\n"
-                    "ম্যানেজমেন্টের দায়িত্ব শুধু টার্গেট চাপিয়ে দেওয়া নয়, বরং সঠিক আইই টুলস দিয়ে কর্মীদের কাজ সহজ করা।\n\n"
-                    f"🗓️ {time_tag}\n"
-                    f"{keywords or default_tags}"
-                ),
-                "voiceover": "",
-                "slides": [],
-                "badge": badge,
-                "bullets": []
-            }
+    platform_captions = build_platform_captions(master_caption, topic_title, keywords or default_tags, persona)
+
+    return {
+        "caption": platform_captions.get("linkedin_personal" if persona == "personal" else "linkedin_company"),
+        "platform_captions": platform_captions,
+        "voiceover": voiceover,
+        "slides": slides,
+        "badge": badge,
+        "bullets": bullets
+    }
 
 
 def generate_content(topic_title: str, keywords: str, content_type: str) -> dict:
     """
-    Generates high-retention, technical Bengali content using Gemini Pro (gemini-1.5-pro)
+    Generates high-retention, technical Bengali content using Gemini Flash (gemini-3.6-flash)
     with temperature=0.3, top_p=0.85, and environment-based persona architecture.
+    Produces multi-platform tailored captions respecting each platform's character limit.
     """
     persona = settings.PROFILE_TYPE
     system_instruction = get_system_instruction(persona)
@@ -240,7 +207,7 @@ def generate_content(topic_title: str, keywords: str, content_type: str) -> dict
 
     আউটপুটটি অবশ্যই সম্পূর্ণ বৈধ JSON অবজেক্ট হিসেবে প্রদান করো (কোনো ব্যাকটিক বা অতিরিক্ত টেক্সট ছাড়া):
     {{
-      "caption": "সম্পূর্ণ পোস্টের বিস্তারিত আকর্ষণীয় বাংলা ক্যাপশন (হুক + টেকনিক্যাল বিশ্লেষণ + টেকঅ্যাওয়ে + হ্যাশট্যাগ)",
+      "caption": "সম্পূর্ণ পোস্টের মূল আকর্ষণীয় বাংলা ক্যাপশন (হুক + টেকনিক্যাল বিশ্লেষণ + টেকঅ্যাওয়ে + হ্যাশট্যাগ)",
       "voiceover": "ভিডিও ফরম্যাটের জন্য ৩০–৫০ সেকেন্ডের জোরালো ও প্রাঞ্জল টেকনিক্যাল ভয়েসওভার স্ক্রিপ্ট",
       "slides": ["স্লাইড ১ এর সারসংক্ষেপ", "স্লাইড ২ এর সারসংক্ষেপ", "স্লাইড ৩ এর সারসংক্ষেপ"],
       "badge": "টপিকের জন্য উপযুক্ত ক্যাটাগরি ব্যাজ (২-৩ শব্দ)",
@@ -265,7 +232,6 @@ def generate_content(topic_title: str, keywords: str, content_type: str) -> dict
         "gemini-1.5-pro"
     ]
 
-    # Remove duplicates while preserving order
     seen = set()
     unique_models = [m for m in models_to_try if not (m in seen or seen.add(m))]
 
@@ -280,13 +246,17 @@ def generate_content(topic_title: str, keywords: str, content_type: str) -> dict
             cleaned_json = _clean_json_string(response.text)
             data = json.loads(cleaned_json)
 
-            data.setdefault("caption", f"{topic_title}\n\n{keywords}")
+            master_caption = data.get("caption", f"{topic_title}\n\n{keywords}")
             data.setdefault("voiceover", f"{topic_title} নিয়ে আজকের টেকনিক্যাল আলোচনা।")
             data.setdefault("slides", ["ভূমিকা ও প্রেক্ষাপট", "মূল আলোচনা", "ফলাফল"])
             data.setdefault("badge", "টেকনিক্যাল গাইড")
             data.setdefault("bullets", ["দক্ষতা বৃদ্ধি", "অপচয় হ্রাস", "সঠিক পর্যবেক্ষণ"])
 
-            logger.info(f"✅ Gemini API ({model_name}) থেকে সফলভাবে কনটেন্ট জেনারেট হয়েছে।")
+            # Build platform-specific tailored captions respecting character limits
+            platform_captions = build_platform_captions(master_caption, topic_title, keywords, persona)
+            data["platform_captions"] = platform_captions
+
+            logger.info(f"✅ Gemini API ({model_name}) থেকে সফলভাবে মাল্টি-প্ল্যাটফর্ম কনটেন্ট জেনারেট হয়েছে।")
             return data
 
         except Exception as e:

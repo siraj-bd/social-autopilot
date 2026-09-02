@@ -4,10 +4,10 @@ from pathlib import Path
 from mutagen.mp3 import MP3
 from PIL import Image
 
-from config import get_bengali_font_path, OUTPUT_DIR
-from gemini_generator import generate_content
+from config import get_bengali_font_path, OUTPUT_DIR, get_platform_registry, normalize_platform_keys
+from gemini_generator import generate_content, build_platform_captions
 from media_engine import create_image_card, generate_voiceover, create_vertical_video
-from publisher import publish_post, dry_run_dump, is_valid_urn
+from publisher import publish_post, dry_run_dump, is_valid_urn, validate_character_limit
 import scheduler
 
 
@@ -31,6 +31,7 @@ class TestSocialAutopilotPipeline(unittest.TestCase):
             self.assertIn("slides", content)
             self.assertIn("badge", content)
             self.assertIn("bullets", content)
+            self.assertIn("platform_captions", content)
             self.assertGreater(len(content["caption"]), 10)
 
     def test_03_image_card_rendering(self):
@@ -82,14 +83,16 @@ class TestSocialAutopilotPipeline(unittest.TestCase):
         self.assertTrue((dump_folder / "caption.txt").exists())
         self.assertTrue((dump_folder / "meta.json").exists())
 
-        is_live, msg = publish_post(
+        is_live, msg, per_res = publish_post(
             task_id="UT_999",
             content_type="image",
             caption="টেস্ট সোশ্যাল মিডিয়া ক্যাপশন",
             media_path=card_path,
-            platforms="facebook,linkedin"
+            platforms="facebook,linkedin",
+            dry_run=True
         )
-        self.assertTrue(bool(msg))
+        self.assertFalse(is_live)
+        self.assertIn("dry_run", str(per_res))
 
     def test_07_custom_caption_preservation(self):
         """Test that exact user-provided text is preserved in dry run dump."""
@@ -137,6 +140,56 @@ class TestSocialAutopilotPipeline(unittest.TestCase):
         self.assertFalse(is_valid_urn("urn:li:organization:<আমার_কোম্পানি_পেজ_আইডি>"))
         self.assertFalse(is_valid_urn("<ID>"))
         self.assertFalse(is_valid_urn(""))
+
+    def test_11_multi_platform_adapted_captions(self):
+        """Test tailored captions generation for each platform."""
+        topic = "গার্মেন্টস লাইনে ম্যাথমেটিক্যাল ব্যালেন্সিং"
+        keywords = "#RMG #LineBalancing"
+        res = build_platform_captions("মাস্টার বডি টেক্সট।", topic, keywords, "personal")
+
+        self.assertIn("linkedin_personal", res)
+        self.assertIn("linkedin_company", res)
+        self.assertIn("facebook_page", res)
+        self.assertIn("instagram", res)
+
+        # Verify character limit adherence
+        registry = get_platform_registry()
+        for p_key, cap in res.items():
+            self.assertLessEqual(len(cap), registry[p_key].max_characters)
+
+    def test_12_character_limit_enforcement(self):
+        """Test that exceeding character limits throws explicit validation error."""
+        oversized_ig_caption = "A" * 2500  # IG limit is 2200
+        with self.assertRaises(ValueError):
+            validate_character_limit(oversized_ig_caption, "instagram")
+
+        valid_ig_caption = "A" * 2000
+        validate_character_limit(valid_ig_caption, "instagram")  # Should not raise
+
+    def test_13_platform_normalization_and_toggle(self):
+        """Test platform alias resolution and ON/OFF handling."""
+        keys = normalize_platform_keys("linkedin,facebook,instagram")
+        self.assertIn("facebook_page", keys)
+        self.assertIn("instagram", keys)
+
+    def test_14_media_reuse_and_dry_run_multi_account(self):
+        """Test that single media_path is reused and dry-run returns per-account statuses."""
+        card_path = OUTPUT_DIR / "unit_test_card.png"
+        captions = {
+            "linkedin_personal": "LinkedIn specific text",
+            "facebook_page": "Facebook specific text"
+        }
+        is_live, msg, per_res = publish_post(
+            task_id="UT_MULTI",
+            content_type="image",
+            caption=captions,
+            media_path=card_path,
+            platforms="linkedin_personal,facebook_page",
+            dry_run=True
+        )
+        self.assertFalse(is_live)
+        self.assertEqual(per_res["linkedin_personal"]["status"], "dry_run")
+        self.assertEqual(per_res["facebook_page"]["status"], "dry_run")
 
 
 if __name__ == "__main__":
