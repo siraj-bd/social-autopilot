@@ -1,13 +1,34 @@
+import os
+import sys
+import json
 import urllib.request
 import urllib.parse
-import json
+from dotenv import load_dotenv
+
+load_dotenv()
+
+client_id = os.getenv("LINKEDIN_CLIENT_ID", "").strip()
+client_secret = os.getenv("LINKEDIN_CLIENT_SECRET", "").strip()
+redirect_uri = os.getenv("LINKEDIN_REDIRECT_URI", "https://localhost").strip()
+code = os.getenv("LINKEDIN_AUTH_CODE", "").strip()
+
+if not client_id or not client_secret or not code:
+    print("\n--- LinkedIn Token Exchange Helper ---")
+    print("ব্যবহার বিধি:")
+    print("1. আপনার .env ফাইলে নিচের ভ্যারিয়েবলগুলো সেট করুন:")
+    print("   LINKEDIN_CLIENT_ID=your_client_id")
+    print("   LINKEDIN_CLIENT_SECRET=your_client_secret")
+    print("   LINKEDIN_REDIRECT_URI=https://localhost")
+    print("   LINKEDIN_AUTH_CODE=your_authorization_code")
+    print("2. তারপর পুনরায় রান করুন: python get_token.py\n")
+    sys.exit(0)
 
 data = urllib.parse.urlencode({
     'grant_type': 'authorization_code',
-    'code': 'AQSvsGGpgH0xd4qK4faGmX61G5mTQvqFbDZu1K6_w3r2oKZceMX65zOduC0abqZSq6nTbDc4eWOL7qUkyKS90r6U8frxaeUpJwO-9n-Bzm6GQMitl9sRaGVm4M3jEu3EsvoNZmCWY6qBj22AZcmIAfCu60jbgR0nTWlS1lXwHQX9i3YcZarxEx9g_B-_V6eKUNknh4KXz6gys-LV3u0',
-    'client_id': '86qcf8nn6915b5',
-    'client_secret': 'WPL_AP1.2bQ5IUGJGvzDvzGU.z1nskw==',
-    'redirect_uri': 'https://localhost'
+    'code': code,
+    'client_id': client_id,
+    'client_secret': client_secret,
+    'redirect_uri': redirect_uri
 }).encode('utf-8')
 
 req = urllib.request.Request(

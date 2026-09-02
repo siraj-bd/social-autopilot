@@ -1,5 +1,3 @@
-id,publish_time,topic_title,keywords_hashtags,content_type,platforms,status,error_log
-101,2026-09-03 01:55,গার্মেন্টস লাইনে ব্যালেন্সিং টেকনিক,#RMG #LineBalancing #Production #Apparel,video,"facebook,linkedin",posted (dry-run),ড্রাফট তৈরি সম্পন্ন: ড্রাফট সংরক্ষিত (dry_run_20260903_015634_101) (2026-09-03 01:56:34)
-102,2026-09-03 01:55,পোশাক শিল্পে 5S বাস্তবায়ন ও সুবিধা,#Lean #5S #Manufacturing #Efficiency,image,"facebook,linkedin",posted (dry-run),ড্রাফট তৈরি সম্পন্ন: ড্রাফট সংরক্ষিত (dry_run_20260903_015634_102) (2026-09-03 01:56:34)
-103,2026-09-03 01:55,স্মার্ট ফ্যাক্টরি ও অটোমেশনের প্রয়োজনীয়তা,#SmartFactory #Industry40 #Automation,text_only,"facebook,linkedin",posted (dry-run),ড্রাফট তৈরি সম্পন্ন: ড্রাফট সংরক্ষিত (dry_run_20260903_015634_103) (2026-09-03 01:56:34)
-104,2026-09-03 02:00,গার্মেন্টস ফিনিশিং কোয়ালিটি কন্ট্রোল,#Quality #Finishing #RMG,video,"facebook,linkedin",processing,
+id,publish_time,topic_title,keywords_hashtags,content_type,platforms,status,error_log,recurrence,custom_caption
+991,2026-09-03 01:00,T1,,,,pending,স্টেল প্রসেসিং টাস্ক স্বয়ংক্রিয়ভাবে পেন্ডিং অবস্থায় রিকভার করা হয়েছে।,,
+992,2026-09-03 01:00,T2,,,,posted,,,

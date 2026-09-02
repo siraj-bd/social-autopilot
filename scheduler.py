@@ -1,9 +1,9 @@
 import csv
 import os
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
 from config import BASE_DIR, logger
 from gemini_generator import generate_content
 from media_engine import create_image_card, generate_voiceover, create_vertical_video
@@ -18,7 +18,9 @@ FIELDNAMES = [
     "content_type",
     "platforms",
     "status",
-    "error_log"
+    "error_log",
+    "recurrence",
+    "custom_caption"
 ]
 
 
@@ -35,7 +37,9 @@ def init_csv():
                 "content_type": "video",
                 "platforms": "facebook,linkedin",
                 "status": "pending",
-                "error_log": ""
+                "error_log": "",
+                "recurrence": "none",
+                "custom_caption": ""
             },
             {
                 "id": "102",
@@ -45,7 +49,9 @@ def init_csv():
                 "content_type": "image",
                 "platforms": "facebook,linkedin",
                 "status": "pending",
-                "error_log": ""
+                "error_log": "",
+                "recurrence": "none",
+                "custom_caption": ""
             },
             {
                 "id": "103",
@@ -55,7 +61,9 @@ def init_csv():
                 "content_type": "text_only",
                 "platforms": "facebook,linkedin",
                 "status": "pending",
-                "error_log": ""
+                "error_log": "",
+                "recurrence": "none",
+                "custom_caption": ""
             }
         ]
         with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
@@ -66,12 +74,17 @@ def init_csv():
 
 
 def read_tasks() -> List[Dict[str, str]]:
-    """Reads all rows from schedule.csv."""
+    """Reads all rows from schedule.csv, providing defaults for missing columns."""
     if not CSV_FILE.exists():
         init_csv()
     with open(CSV_FILE, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        return list(reader)
+        rows = []
+        for r in reader:
+            for field in FIELDNAMES:
+                r.setdefault(field, "")
+            rows.append(r)
+        return rows
 
 
 def write_tasks(rows: List[Dict[str, str]]):
@@ -80,22 +93,65 @@ def write_tasks(rows: List[Dict[str, str]]):
     with tempfile.NamedTemporaryFile("w", dir=temp_dir, delete=False, newline="", encoding="utf-8") as tf:
         writer = csv.DictWriter(tf, fieldnames=FIELDNAMES)
         writer.writeheader()
-        writer.writerows(rows)
+        # Clean each row to conform strictly to FIELDNAMES
+        cleaned_rows = []
+        for r in rows:
+            clean_r = {k: r.get(k, "") for k in FIELDNAMES}
+            cleaned_rows.append(clean_r)
+        writer.writerows(cleaned_rows)
         temp_name = tf.name
 
     os.replace(temp_name, CSV_FILE)
+
+
+def calculate_next_run(current_time_str: str, recurrence: str) -> str:
+    """Calculates next publish_time based on recurrence pattern."""
+    rec = recurrence.strip().lower()
+    try:
+        dt = datetime.strptime(current_time_str, "%Y-%m-%d %H:%M")
+    except ValueError:
+        dt = datetime.now()
+
+    if rec == "daily":
+        next_dt = dt + timedelta(days=1)
+    elif rec == "weekly":
+        next_dt = dt + timedelta(weeks=1)
+    elif rec == "hourly":
+        next_dt = dt + timedelta(hours=1)
+    else:
+        return ""
+    return next_dt.strftime("%Y-%m-%d %H:%M")
+
+
+def recover_stale_processing_tasks():
+    """Recovers any tasks left stuck in 'processing' status on daemon startup or cycle."""
+    if not CSV_FILE.exists():
+        return
+    rows = read_tasks()
+    recovered = False
+    for row in rows:
+        if row.get("status", "").strip().lower() == "processing":
+            row["status"] = "pending"
+            row["error_log"] = "স্টেল প্রসেসিং টাস্ক স্বয়ংক্রিয়ভাবে পেন্ডিং অবস্থায় রিকভার করা হয়েছে।"
+            recovered = True
+            logger.info(f"🔄 [Task {row.get('id')}] স্টেল 'processing' অবস্থা থেকে 'pending'-এ রিকভার করা হয়েছে।")
+    if recovered:
+        write_tasks(rows)
 
 
 def process_pending_tasks():
     """
     Checks schedule.csv against local time.
     Picks pending tasks whose publish_time has arrived,
-    locks them to 'processing', triggers generation, renders media,
-    and publishes (or dumps to dry-run).
+    locks them to 'processing', triggers generation (or preserves custom text),
+    renders media, and publishes (or dumps to dry-run).
     """
     if not CSV_FILE.exists():
         init_csv()
         return
+
+    # Recover any stale locks before picking
+    recover_stale_processing_tasks()
 
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
     rows = read_tasks()
@@ -117,29 +173,52 @@ def process_pending_tasks():
             keywords = row.get("keywords_hashtags", "")
             content_type = row.get("content_type", "image").strip().lower()
             platforms = row.get("platforms", "facebook,linkedin")
+            recurrence = row.get("recurrence", "none").strip().lower()
+            custom_caption = row.get("custom_caption", "").strip()
 
             # Lock row status to 'processing'
             row["status"] = "processing"
             write_tasks(rows)
-            logger.info(f"⏳ [Task {task_id}] প্রসেসিং শুরু: {topic} ({content_type})")
+            logger.info(f"⏳ [Task {task_id}] প্রসেসিং শুরু: {topic or 'কাস্টম পোস্ট'} ({content_type})")
 
             try:
-                # 1. AI Content Generation
-                content = generate_content(topic, keywords, content_type)
-                caption = content.get("caption", f"{topic}\n\n{keywords}")
                 media_path = None
 
-                # 2. Free Local Media Generation
-                if content_type == "image":
-                    badge = content.get("badge", "গাইড")
-                    bullets = content.get("bullets", ["দক্ষতা বৃদ্ধি", "অপচয় হ্রাস", "সঠিক পর্যবেক্ষণ"])
-                    media_path = create_image_card(topic, badge, bullets, f"card_{task_id}.png")
+                # FIX-1 & FIX-6: EXACT USER TEXT PRESERVATION ROUTING
+                if custom_caption:
+                    logger.info(f"📝 [Task {task_id}] নির্দিষ্ট কাস্টম ক্যাপশন সংরক্ষিত হচ্ছে (Gemini জেনারেশন বাইপাস্ড)।")
+                    caption = custom_caption
 
-                elif content_type == "video":
-                    voiceover_text = content.get("voiceover", f"{topic} নিয়ে আজকের আলোচনা।")
-                    audio_path = generate_voiceover(voiceover_text, f"voice_{task_id}.mp3")
-                    slides = content.get("slides", ["ভূমিকা", "মূল পয়েন্ট", "ফলাফল"])
-                    media_path = create_vertical_video(topic, slides, audio_path, f"video_{task_id}.mp4")
+                    if content_type == "image":
+                        lines = [l.strip() for l in custom_caption.splitlines() if l.strip() and not l.startswith("#")]
+                        badge = "কাস্টম পোস্ট"
+                        bullets = lines[1:4] if len(lines) >= 4 else (lines[:3] if lines else ["মূল আলোচনা", "বাস্তবায়ন", "ফলাফল"])
+                        card_title = topic if topic else (lines[0][:35] if lines else "কাস্টম পোস্ট")
+                        media_path = create_image_card(card_title, badge, bullets, f"card_{task_id}.png")
+
+                    elif content_type == "video":
+                        voiceover_text = custom_caption
+                        audio_path = generate_voiceover(voiceover_text, f"voice_{task_id}.mp3")
+                        lines = [l.strip() for l in custom_caption.splitlines() if l.strip() and not l.startswith("#")]
+                        slides = lines[:3] if len(lines) >= 3 else ["ভূমিকা", "মূল আলোচনা", "সারসংক্ষেপ"]
+                        video_title = topic if topic else (lines[0][:35] if lines else "কাস্টম পোস্ট")
+                        media_path = create_vertical_video(video_title, slides, audio_path, f"video_{task_id}.mp4")
+
+                else:
+                    # Standard Keyword/Topic -> AI Content Generation
+                    content = generate_content(topic, keywords, content_type)
+                    caption = content.get("caption", f"{topic}\n\n{keywords}")
+
+                    if content_type == "image":
+                        badge = content.get("badge", "গাইড")
+                        bullets = content.get("bullets", ["দক্ষতা বৃদ্ধি", "অপচয় হ্রাস", "সঠিক পর্যবেক্ষণ"])
+                        media_path = create_image_card(topic, badge, bullets, f"card_{task_id}.png")
+
+                    elif content_type == "video":
+                        voiceover_text = content.get("voiceover", f"{topic} নিয়ে আজকের আলোচনা।")
+                        audio_path = generate_voiceover(voiceover_text, f"voice_{task_id}.mp3")
+                        slides = content.get("slides", ["ভূমিকা", "মূল পয়েন্ট", "ফলাফল"])
+                        media_path = create_vertical_video(topic, slides, audio_path, f"video_{task_id}.mp4")
 
                 # 3. Publish or Dry-Run Dump
                 is_live, pub_message = publish_post(
@@ -151,12 +230,22 @@ def process_pending_tasks():
                 )
 
                 exec_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                if is_live:
-                    row["status"] = "posted"
-                    row["error_log"] = f"পাবলিশ সম্পন্ন: {pub_message} ({exec_time})"
+
+                # FIX-2: RECURRING SCHEDULE SUPPORT
+                if recurrence in ["daily", "weekly", "hourly"]:
+                    next_time = calculate_next_run(pub_time, recurrence)
+                    row["publish_time"] = next_time
+                    row["status"] = "pending"
+                    status_prefix = "পাবলিশ সম্পন্ন" if is_live else "ড্রাফট তৈরি সম্পন্ন"
+                    row["error_log"] = f"{status_prefix}: {pub_message} ({exec_time}) | পরবর্তী শিডিউল: {next_time}"
+                    logger.info(f"🔁 [Task {task_id}] রিকারিং টাস্ক পরবর্তী শিডিউলে সেট করা হয়েছে: {next_time}")
                 else:
-                    row["status"] = "posted (dry-run)"
-                    row["error_log"] = f"ড্রাফট তৈরি সম্পন্ন: {pub_message} ({exec_time})"
+                    if is_live:
+                        row["status"] = "posted"
+                        row["error_log"] = f"পাবলিশ সম্পন্ন: {pub_message} ({exec_time})"
+                    else:
+                        row["status"] = "posted (dry-run)"
+                        row["error_log"] = f"ড্রাফট তৈরি সম্পন্ন: {pub_message} ({exec_time})"
 
                 logger.info(f"🎉 [Task {task_id}] সফলভাবে সম্পন্ন হয়েছে ({row['status']})")
 

@@ -114,6 +114,11 @@ def publish_to_linkedin(caption: str, content_type: str, media_path: Optional[Pa
         resp = requests.post(url, headers=headers, json=payload, timeout=30)
         resp_data = resp.json() if resp.text else {"status": resp.status_code}
         if resp.status_code >= 400:
+            if resp.status_code == 403 and "organization" in settings.LINKEDIN_AUTHOR_URN:
+                raise RuntimeError(
+                    f"LinkedIn Company Page 403 Access Denied: {resp_data}। "
+                    f"নিশ্চিত করুন যে আপনার লিঙ্কডইন অ্যাপে 'Community Management API' / 'w_organization_social' অনুমোদন রয়েছে এবং আপনি পেজটির অ্যাডমিন।"
+                )
             raise RuntimeError(f"LinkedIn API ত্রুটি: {resp_data}")
         post_id = resp_data.get("id", "")
         post_url = f"https://www.linkedin.com/feed/update/{post_id}/" if post_id else ""
@@ -139,6 +144,11 @@ def publish_to_linkedin(caption: str, content_type: str, media_path: Optional[Pa
     reg_resp = requests.post(register_url, headers=headers, json=register_payload, timeout=30)
     reg_data = reg_resp.json()
     if reg_resp.status_code >= 400:
+        if reg_resp.status_code == 403 and "organization" in settings.LINKEDIN_AUTHOR_URN:
+            raise RuntimeError(
+                f"LinkedIn Company Page Asset Registration 403 Access Denied: {reg_data}। "
+                f"নিশ্চিত করুন যে আপনার লিঙ্কডইন অ্যাপে 'w_organization_social' অনুমোদন রয়েছে এবং আপনি কোম্পানি পেজের অ্যাডমিন।"
+            )
         raise RuntimeError(f"LinkedIn Asset Registration ব্যর্থ: {reg_data}")
 
     asset_urn = reg_data["value"]["asset"]
@@ -173,6 +183,11 @@ def publish_to_linkedin(caption: str, content_type: str, media_path: Optional[Pa
     resp = requests.post(post_url_endpoint, headers=headers, json=post_payload, timeout=30)
     resp_data = resp.json() if resp.text else {"status": resp.status_code}
     if resp.status_code >= 400:
+        if resp.status_code == 403 and "organization" in settings.LINKEDIN_AUTHOR_URN:
+            raise RuntimeError(
+                f"LinkedIn Company Page Media Post 403 Access Denied: {resp_data}। "
+                f"নিশ্চিত করুন যে আপনার লিঙ্কডইন অ্যাপে 'w_organization_social' অনুমোদন রয়েছে।"
+            )
         raise RuntimeError(f"LinkedIn Media Post প্রকাশ ব্যর্থ: {resp_data}")
 
     post_id = resp_data.get("id", "")

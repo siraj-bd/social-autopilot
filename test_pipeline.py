@@ -7,7 +7,7 @@ from PIL import Image
 from config import get_bengali_font_path, OUTPUT_DIR
 from gemini_generator import generate_content
 from media_engine import create_image_card, generate_voiceover, create_vertical_video
-from publisher import publish_post, dry_run_dump
+from publisher import publish_post, dry_run_dump, is_valid_urn
 import scheduler
 
 
@@ -90,6 +90,53 @@ class TestSocialAutopilotPipeline(unittest.TestCase):
             platforms="facebook,linkedin"
         )
         self.assertTrue(bool(msg))
+
+    def test_07_custom_caption_preservation(self):
+        """Test that exact user-provided text is preserved in dry run dump."""
+        custom_text = "সম্পূর্ণ নির্দিষ্ট টেক্সট যা অপরিবর্তিত থাকবে।"
+        payload = {
+            "task_id": "UT_CUSTOM",
+            "content_type": "text_only",
+            "caption": custom_text
+        }
+        dump_folder = dry_run_dump("UT_CUSTOM", payload)
+        saved_caption = (dump_folder / "caption.txt").read_text(encoding="utf-8")
+        self.assertEqual(saved_caption.strip(), custom_text.strip())
+
+    def test_08_recurrence_calculation(self):
+        """Test daily, weekly, hourly recurrence calculation."""
+        base_time = "2026-09-03 10:00"
+        daily_next = scheduler.calculate_next_run(base_time, "daily")
+        self.assertEqual(daily_next, "2026-09-04 10:00")
+
+        weekly_next = scheduler.calculate_next_run(base_time, "weekly")
+        self.assertEqual(weekly_next, "2026-09-10 10:00")
+
+        hourly_next = scheduler.calculate_next_run(base_time, "hourly")
+        self.assertEqual(hourly_next, "2026-09-03 11:00")
+
+        none_next = scheduler.calculate_next_run(base_time, "none")
+        self.assertEqual(none_next, "")
+
+    def test_09_stale_lock_recovery(self):
+        """Test recovery of tasks stuck in 'processing' status."""
+        test_rows = [
+            {"id": "991", "publish_time": "2026-09-03 01:00", "topic_title": "T1", "status": "processing"},
+            {"id": "992", "publish_time": "2026-09-03 01:00", "topic_title": "T2", "status": "posted"}
+        ]
+        scheduler.write_tasks(test_rows)
+        scheduler.recover_stale_processing_tasks()
+        recovered_rows = scheduler.read_tasks()
+        row_991 = next(r for r in recovered_rows if r.get("id") == "991")
+        self.assertEqual(row_991.get("status"), "pending")
+
+    def test_10_urn_validation(self):
+        """Test URN validation helper."""
+        self.assertTrue(is_valid_urn("urn:li:person:MQzC-zOANk"))
+        self.assertTrue(is_valid_urn("urn:li:organization:12345678"))
+        self.assertFalse(is_valid_urn("urn:li:organization:<আমার_কোম্পানি_পেজ_আইডি>"))
+        self.assertFalse(is_valid_urn("<ID>"))
+        self.assertFalse(is_valid_urn(""))
 
 
 if __name__ == "__main__":
