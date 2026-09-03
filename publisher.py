@@ -131,7 +131,7 @@ def is_valid_urn(urn: str) -> bool:
 
 
 def _publish_to_linkedin_core(author_urn: str, caption: str, content_type: str, media_path: Optional[Path] = None, platform_key: str = "linkedin_personal") -> dict:
-    """Core UGC Publisher for LinkedIn Personal Profile or Company Organization."""
+    """Core Publisher for LinkedIn Personal Profile or Company Organization."""
     if not author_urn or not settings.LINKEDIN_ACCESS_TOKEN:
         raise ValueError("LINKEDIN_AUTHOR_URN বা LINKEDIN_ACCESS_TOKEN অনুপস্থিত")
 
@@ -212,7 +212,7 @@ def _publish_to_linkedin_core(author_urn: str, caption: str, content_type: str, 
     if up_resp.status_code >= 400:
         raise RuntimeError(f"LinkedIn Media Upload ব্যর্থ: {up_resp.status_code}")
 
-    # Step 3: Create UGC Post with Media Asset
+    # Step 3: Create Post with Media Asset
     post_url_endpoint = "https://api.linkedin.com/v2/ugcPosts"
     category = "IMAGE" if upload_type == "image" else "VIDEO"
     post_payload = {

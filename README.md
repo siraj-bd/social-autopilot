@@ -1,28 +1,29 @@
-# 🚀 Social Autopilot: Automated Multi-Format Social Media Scheduler
+# 🚀 Social Autopilot: Automated Multi-Platform Social Media Scheduler
 
-> **100% Free, Zero Paid API Dependencies, Self-Hosted Multi-Format Social Media Scheduling & Auto-Posting System**  
+> **100% Free, Zero Paid API Dependencies, Self-Hosted Multi-Platform Social Media Scheduling & Auto-Posting System**  
 > Optimized for macOS (Apple Silicon M1/M2/M3) and Linux.
 
 ---
 
 ## ✨ Features
 
+- 🎯 **Extensible Multi-Platform Architecture**:
+  - Modular platform adapter architecture supporting multiple social channels.
+  - Independent ON/OFF toggles for **LinkedIn Personal Profile**, **LinkedIn Company Page**, **Facebook Page**, and **Instagram Business**.
+  - **Platform-Specific Adaptations**: Tailored hooks, formatting, call-to-actions, and character limit enforcement for each platform (LinkedIn 3,000, Facebook 63,206, Instagram 2,200 chars).
 - 🌐 **English Default & Multilingual Engine**:
   - **English Default Mode**: Generates authoritative, industry-tailored English posts by default (`DEFAULT_LANGUAGE=en`).
   - **Optional Bengali Mode**: Explicitly selectable (`--lang bn` / `language=bn`), preserving essential RMG, IE, SAM, 5S, AQL, and SOP technical terms in English.
   - **Neural TTS Voice Switching**: `en-US-ChristopherNeural` for English and `bn-BD-PradeepNeural` for Bengali.
 - 📝 **Exact Custom Text Preservation**:
   - User-provided captions (`--caption`) bypass AI generation completely and are published verbatim with zero destructive truncation.
-- 🎯 **Multi-Account Platform Architecture**:
-  - Independent ON/OFF toggles for **LinkedIn Personal Profile**, **LinkedIn Company Page**, **Facebook Page**, and **Instagram Business**.
-  - **Platform-Specific Adaptations**: Tailored hooks and character limits for each platform (LinkedIn 3,000, Facebook 63,206, Instagram 2,200 chars).
 - 🖼️ **Single-Asset Media Reuse**:
-  - Generates 1 validated 1080x1080 Image Card or 1080x1920 9:16 Vertical Video per task and reuses it across all targeted channels.
+  - Generates 1 validated 1080x1080 Image Card or 1080x1920 9:16 Vertical Video per task and reuses it across all targeted channels without duplicate rendering.
 - 📅 **Industrial Scheduler Engine**:
   - CSV queue (`schedule.csv`) supporting one-time and recurring (`daily`, `weekly`, `hourly`) schedules.
   - Timezone-safe execution, automatic stale `processing` lock recovery, missed-task recovery, and atomic persistence.
 - 🔒 **Secure & Self-Hosted**:
-  - Zero hardcoded credentials, full environment isolation, and graceful dry-run fallbacks.
+  - Local-first architecture: zero central telemetry, zero hardcoded credentials, full environment isolation, and graceful dry-run fallbacks.
 
 ---
 
@@ -67,7 +68,7 @@
    # System Default Language (en = English, bn = Bengali)
    DEFAULT_LANGUAGE=en
 
-   # Google Gemini API
+   # Google Gemini API (Optional AI Content Engine)
    GEMINI_API_KEY=your_gemini_api_key
    GEMINI_MODEL=gemini-3.6-flash
 
@@ -131,4 +132,5 @@ python test_pipeline.py
 
 ## 📄 License & Status
 
-For detailed project status, architectural audits, and platform activation instructions, see [PROJECT_STATUS.md](PROJECT_STATUS.md).
+For detailed project status, architectural audits, and platform activation instructions, see [PROJECT_STATUS.md](PROJECT_STATUS.md).  
+Public Privacy Policy: [https://siraj-bd.github.io/social-autopilot/](https://siraj-bd.github.io/social-autopilot/)

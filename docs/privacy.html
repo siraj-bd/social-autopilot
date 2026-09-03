@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Privacy Policy — Social Autopilot</title>
-  <meta name="description" content="Privacy Policy for Social Autopilot: Automated Multi-Format Social Media Scheduler.">
+  <meta name="description" content="Privacy Policy for Social Autopilot: Open-Source, Self-Hosted, Local-First Multi-Platform Social Media Scheduling and Publishing System.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -230,6 +230,13 @@
       border-radius: 6px;
     }
 
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 20px 0 10px;
+    }
+
     p {
       color: var(--text-secondary);
       margin-bottom: 16px;
@@ -330,10 +337,10 @@
           <div class="logo-badge">SA</div>
           <div class="logo-text">
             <h1>Social Autopilot</h1>
-            <span>Self-Hosted Multi-Format Social Media Scheduler</span>
+            <span>Self-Hosted Multi-Platform Social Media Scheduler</span>
           </div>
         </a>
-        <div class="header-tag">Open Source &bull; Self-Hosted</div>
+        <div class="header-tag">Open Source &bull; Self-Hosted &bull; Multi-Platform</div>
       </div>
       <div class="doc-meta">
         <div><strong>Effective Date:</strong> September 3, 2026</div>
@@ -347,8 +354,8 @@
       <div class="summary-box">
         <h3>🛡️ Quick Privacy Summary</h3>
         <p>
-          <strong>Social Autopilot is a 100% self-hosted, local-first automation application.</strong> 
-          We do not operate central user tracking databases, telemetry servers, or data brokerage systems. All configuration keys, OAuth tokens, content queues, and generated media assets reside exclusively on the user's own local filesystem and communicate directly with user-authorized third-party APIs (such as LinkedIn and Meta).
+          <strong>Social Autopilot is an open-source, self-hosted, local-first, multi-platform social media scheduling and publishing system.</strong> 
+          We do not operate central user tracking databases, telemetry servers, or data brokerage networks. All configuration files, OAuth tokens, content queues, and generated media assets reside exclusively on the user's host filesystem and communicate directly with user-authorized third-party social-platform APIs and other configured external services.
         </p>
       </div>
 
@@ -356,7 +363,7 @@
       <section>
         <h2><span class="section-number">01</span> What Social Autopilot Is</h2>
         <p>
-          Social Autopilot is an open-source, automated multi-format social media scheduling and publishing system. It allows developers, creators, and engineering leaders to generate and schedule technical posts, infographics, and short vertical videos for publishing to social platforms like <strong>LinkedIn</strong> and <strong>Meta (Facebook Page / Instagram)</strong>.
+          Social Autopilot is an open-source, modular, self-hosted, local-first multi-platform social media scheduling and publishing automation system. It enables developers, content creators, and engineering leaders to generate, tailor, and schedule technical posts, infographics, and vertical videos across multiple independently configured social media platform integrations.
         </p>
       </section>
 
@@ -364,13 +371,14 @@
       <section>
         <h2><span class="section-number">02</span> Self-Hosted & Local-First Architecture</h2>
         <p>
-          Unlike Software-as-a-Service (SaaS) platforms, Social Autopilot runs directly on your local machine, server, or private cloud instance.
+          Social Autopilot operates on a self-hosted, local-first architecture where data control remains entirely in the hands of the user:
         </p>
         <ul>
-          <li><strong>No Remote Server Database:</strong> Social Autopilot has no central cloud server that collects or stores your login credentials or personal profile data.</li>
-          <li><strong>Local Configuration Storage:</strong> All environment variables and access tokens are loaded from local environment files (<code>.env</code>) on the host machine.</li>
-          <li><strong>Local Queue:</strong> All scheduled tasks and publication statuses are stored locally in a CSV file (<code>schedule.csv</code>).</li>
-          <li><strong>Local Media Rendering:</strong> Media assets (cards, voiceovers, MP4 videos) are generated and stored locally in the <code>output/</code> directory.</li>
+          <li><strong>No Remote Control Server:</strong> Social Autopilot does not run an intermediary proxy server, centralized database, or telemetry service that collects your credentials or profile activity.</li>
+          <li><strong>Local Configuration Storage:</strong> All environment variables, API keys, and access tokens are loaded from local environment files (<code>.env</code>) on the user's machine.</li>
+          <li><strong>Local Task Queue:</strong> All scheduled tasks, execution timestamps, custom captions, and publication status records are stored locally in <code>schedule.csv</code>.</li>
+          <li><strong>Local Media Rendering:</strong> Media assets (graphic cards, voiceovers, and MP4 vertical videos) are generated and stored locally in the <code>output/</code> directory.</li>
+          <li><strong>Direct API Communication:</strong> Network requests are dispatched directly from the user's local instance to the official endpoints of enabled third-party services.</li>
         </ul>
       </section>
 
@@ -378,7 +386,7 @@
       <section>
         <h2><span class="section-number">03</span> Information Processed by Social Autopilot</h2>
         <p>
-          Depending on how you configure and run Social Autopilot, the following categories of data are processed locally on your system:
+          Depending on your configuration and workflow, the following categories of data are processed locally and, where enabled, transmitted to external services:
         </p>
         
         <div class="table-wrapper">
@@ -386,30 +394,30 @@
             <thead>
               <tr>
                 <th>Data Category</th>
-                <th>Storage Location</th>
-                <th>Purpose & Handling</th>
+                <th>Local Storage</th>
+                <th>External Transmission & Purpose</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td><strong>API Credentials & Tokens</strong></td>
-                <td>Local <code>.env</code> file</td>
-                <td>Stores user-provided LinkedIn Access Tokens, Meta Page Tokens, and Google Gemini API keys. Strictly excluded from version control via <code>.gitignore</code>.</td>
+                <td><strong>API Credentials & Access Tokens</strong></td>
+                <td>Local <code>.env</code> file (gitignored)</td>
+                <td>Transmitted as HTTP Authorization Bearer headers exclusively to the respective external API endpoints (e.g., LinkedIn, Meta, Google Gemini). Never sent to any other third party.</td>
               </tr>
               <tr>
                 <td><strong>Scheduled Content & Captions</strong></td>
                 <td>Local <code>schedule.csv</code></td>
-                <td>Stores topic titles, hashtags, custom captions, execution timestamps, and per-platform publication status logs.</td>
+                <td>Platform-adapted captions or user-provided custom text are transmitted to enabled social platform APIs at scheduled execution times.</td>
               </tr>
               <tr>
                 <td><strong>Generated Media Assets</strong></td>
                 <td>Local <code>output/</code> directory</td>
-                <td>Stores generated PNG graphic cards, MP3 voiceover files, and MP4 vertical video files.</td>
+                <td>PNG image cards and MP4 vertical videos are uploaded directly to enabled social platform media endpoints when publishing image or video posts.</td>
               </tr>
               <tr>
-                <td><strong>Execution Logs</strong></td>
+                <td><strong>Execution & Error Logs</strong></td>
                 <td>Local <code>autopilot.log</code></td>
-                <td>Stores timestamped task status logs, error messages, and external publication URLs for debugging.</td>
+                <td>Stores timestamped execution records, returned post identifiers, and error diagnostics locally for troubleshooting.</td>
               </tr>
             </tbody>
           </table>
@@ -418,48 +426,54 @@
 
       <!-- Section 4 -->
       <section>
-        <h2><span class="section-number">04</span> Third-Party Services & API Interactions</h2>
+        <h2><span class="section-number">04</span> Multi-Platform Scope & Third-Party Service Interactions</h2>
         <p>
-          Social Autopilot connects directly to the following external APIs using the credentials you configure:
+          Social Autopilot connects directly to user-authorized external APIs based on the platforms and services enabled in the user's configuration. Each platform integration operates independently and adheres to platform-specific character limits, media rules, and permission scopes.
         </p>
 
-        <h3>1. LinkedIn API (LinkedIn REST / Posts & Media API)</h3>
+        <h3>1. LinkedIn API (LinkedIn REST / Posts & Media Publishing API)</h3>
         <p>
-          When LinkedIn publishing is enabled, Social Autopilot communicates directly with LinkedIn's official REST API endpoints (<code>https://api.linkedin.com/v2/</code>):
+          When LinkedIn publishing is enabled, Social Autopilot communicates directly with LinkedIn's official REST API endpoints:
         </p>
         <ul>
-          <li><strong>Permissions & Scopes:</strong> <code>w_member_social</code>, <code>openid</code>, <code>profile</code>, <code>email</code> (for personal profile publishing) and optional <code>w_organization_social</code> / Community Management API (for authorized organization publishing).</li>
-          <li><strong>Data Transmitted:</strong> Post commentary and caption text, uploaded media binaries (PNG graphic cards / MP4 vertical videos), and the author Uniform Resource Name (URN: <code>urn:li:person:...</code> or <code>urn:li:organization:...</code>).</li>
-          <li><strong>Data Received:</strong> LinkedIn post identifiers (e.g. <code>urn:li:share:...</code>) and HTTP status codes to record publication success in your local schedule log.</li>
-          <li><strong>No Scraping or Harvesting:</strong> Social Autopilot does not scrape, harvest, index, or store LinkedIn user feeds, profile connections, direct messages, or contact lists.</li>
+          <li><strong>Personal Profile Publishing:</strong> Publishes member posts and media using the authenticated member's Person URN (<code>urn:li:person:...</code>) and standard member sharing permissions (<code>w_member_social</code>, <code>openid</code>, <code>profile</code>, <code>email</code>).</li>
+          <li><strong>Organization / Company Page Publishing:</strong> Publishes organization posts using the target Organization URN (<code>urn:li:organization:...</code>). Requires the application to have approved organization permissions (<code>w_organization_social</code> / Community Management API) and requires the authenticated member to hold an administrative role on the LinkedIn Page. When organization authorization is missing, organization publishing is blocked and fails fast with a clear error.</li>
+          <li><strong>Data Transmitted:</strong> Post commentary and caption text, uploaded media binaries (PNG graphic cards / MP4 vertical videos), and the author Uniform Resource Name (URN).</li>
+          <li><strong>Data Received:</strong> LinkedIn post identifiers (e.g., <code>urn:li:share:...</code>) and HTTP status codes to record publication state locally.</li>
+          <li><strong>No Scraping or Harvesting:</strong> Social Autopilot does not scrape, index, or store LinkedIn user feeds, connections, messages, or member directory data.</li>
         </ul>
 
         <h3>2. Meta Graph API (Facebook Page & Instagram Business)</h3>
         <ul>
-          <li><strong>Permissions Used:</strong> <code>pages_manage_posts</code>, <code>pages_read_engagement</code>, and Instagram Content Publishing.</li>
-          <li><strong>Data Transmitted:</strong> Page captions, images, and videos published directly to the user's authorized Facebook Page or Instagram Business container.</li>
-          <li><strong>Data Received:</strong> Post IDs and publication status confirmations.</li>
+          <li><strong>Facebook Page Publishing:</strong> Uses Meta Graph API (v19.0) with page permissions (<code>pages_manage_posts</code>, <code>pages_read_engagement</code>) to publish text posts, photos, and videos to configured Facebook Pages. Blocked if <code>META_PAGE_ID</code> or <code>META_ACCESS_TOKEN</code> is not configured.</li>
+          <li><strong>Instagram Business Publishing:</strong> Integrates with Meta's Graph API Instagram Container workflow for image and Reels publishing. Blocked if <code>INSTAGRAM_ACCOUNT_ID</code>, access tokens, or public media hosting URLs are not configured.</li>
+          <li><strong>Data Transmitted:</strong> Page captions, images, and video files sent to Graph API endpoints.</li>
         </ul>
 
         <h3>3. Google Gemini API (Optional AI Content Engine)</h3>
         <ul>
-          <li><strong>Usage:</strong> Used to generate technical post drafts, takeaway points, and video scripts based on user-provided keywords or topics.</li>
-          <li><strong>Data Transmitted:</strong> Only the topic title, hashtags, target persona, and content type parameters. User personal account data is not sent to Gemini.</li>
-          <li><strong>Bypass:</strong> When you supply an exact custom caption (<code>--caption</code>), Gemini API generation is completely bypassed.</li>
+          <li><strong>Usage:</strong> When keyword or topic-driven content generation is triggered, Social Autopilot calls Google Gemini API models (e.g., <code>gemini-3.6-flash</code> via the official Google GenAI SDK) to generate structured post drafts, takeaways, and video scripts.</li>
+          <li><strong>Data Transmitted:</strong> Only the specified post topic, keywords, language setting, and formatting parameters. User profile data and private account credentials are not transmitted to Gemini.</li>
+          <li><strong>Exact Custom Caption Bypass:</strong> When a user supplies an exact custom caption (via <code>--caption</code> or <code>custom_caption</code>), the Google Gemini API call is completely bypassed.</li>
         </ul>
 
-        <h3>4. Microsoft Edge TTS (Local Voiceover Synthesis)</h3>
+        <h3>4. Microsoft Edge TTS (Voiceover Synthesis)</h3>
         <ul>
-          <li><strong>Usage:</strong> Synthesizes neural voiceover audio for vertical videos without requiring paid cloud API keys.</li>
-          <li><strong>Data Transmitted:</strong> Text string of the voiceover narration script.</li>
+          <li><strong>Usage:</strong> Synthesizes neural voiceover audio files for 9:16 vertical videos using Microsoft Edge Neural TTS voices (e.g., <code>en-US-ChristopherNeural</code> or <code>bn-BD-PradeepNeural</code>).</li>
+          <li><strong>Data Transmitted:</strong> The text narration string is transmitted over HTTPS to Microsoft's Edge TTS service to synthesize the requested MP3 audio stream.</li>
         </ul>
+
+        <h3>5. Future & Additional Platform Integrations</h3>
+        <p>
+          Social Autopilot's modular adapter architecture is designed to support additional social networks (such as X/Twitter, Threads, YouTube, and others) as independent, toggleable integrations. Any newly added platform will follow the same local-first principles: independent credentials, explicit user opt-in, strict character limit validation, and zero centralized data collection.
+        </p>
       </section>
 
       <!-- Section 5 -->
       <section>
-        <h2><span class="section-number">05</span> Cookies, Analytics, and Tracking</h2>
+        <h2><span class="section-number">05</span> Cookies, Analytics, and Telemetry</h2>
         <p>
-          <strong>Zero Web Tracking:</strong> Social Autopilot contains no web cookies, tracking pixels, telemetric beacons, or third-party analytics SDKs (such as Google Analytics or Mixpanel). We do not track your IP address, device fingerprints, or runtime activity.
+          <strong>Zero Web Tracking:</strong> Social Autopilot contains no web cookies, tracking pixels, telemetry beacons, or third-party analytics SDKs. The application does not collect IP addresses, hardware identifiers, or runtime usage statistics.
         </p>
       </section>
 
@@ -467,11 +481,11 @@
       <section>
         <h2><span class="section-number">06</span> Data Retention and User Deletion Rights</h2>
         <p>
-          Because all data is stored locally on your machine:
+          Because all data is stored locally on the user's host system:
         </p>
         <ul>
-          <li><strong>Immediate Deletion:</strong> You can delete all local data at any time by clearing the <code>schedule.csv</code> file, deleting the <code>output/</code> directory, or removing your <code>.env</code> files.</li>
-          <li><strong>Revoking Access:</strong> You can revoke Social Autopilot's access to your LinkedIn or Facebook accounts at any time through your LinkedIn Developer App settings or Meta App Permissions. Once revoked, Social Autopilot cannot publish on your behalf.</li>
+          <li><strong>Full Data Control:</strong> You can delete all local records at any time by deleting <code>schedule.csv</code>, clearing the <code>output/</code> directory, or removing your <code>.env</code> files.</li>
+          <li><strong>Revoking Permissions:</strong> You can revoke Social Autopilot's access to your social accounts at any time via your LinkedIn Developer App settings or Meta App Permissions. Revocation immediately terminates the application's ability to publish to those accounts.</li>
         </ul>
       </section>
 
@@ -482,9 +496,9 @@
           Social Autopilot enforces strict local security best practices:
         </p>
         <ul>
-          <li><strong>Git Protection:</strong> The repository's <code>.gitignore</code> strictly excludes all <code>.env*</code> credential files, virtual environments, runtime logs, and media artifacts from being committed to source control.</li>
-          <li><strong>Credential Isolation:</strong> No OAuth tokens or API secrets are hardcoded in application scripts or public documentation.</li>
-          <li><strong>Atomic File Operations:</strong> Task queue updates use atomic temporary file replacement to prevent data corruption during power interruptions.</li>
+          <li><strong>Git Exclusion:</strong> The repository's <code>.gitignore</code> strictly excludes all <code>.env*</code> credential files, virtual environments, runtime logs, and media output from being committed to version control.</li>
+          <li><strong>Zero Hardcoded Secrets:</strong> No OAuth tokens, client secrets, or private keys are hardcoded in source files or public documentation.</li>
+          <li><strong>Atomic Storage Operations:</strong> Schedule state updates are written atomically using temporary files and safe replacements to prevent data corruption.</li>
         </ul>
       </section>
 
@@ -492,15 +506,15 @@
       <section>
         <h2><span class="section-number">08</span> Children's Privacy</h2>
         <p>
-          Social Autopilot is designed for developers, engineering professionals, and organizations. It is not intended for use by individuals under the age of 13.
+          Social Autopilot is intended for software developers, content creators, and business professionals. It is not designed or intended for use by individuals under the age of 13.
         </p>
       </section>
 
       <!-- Section 9 -->
       <section>
-        <h2><span class="section-number">09</span> Changes to This Policy</h2>
+        <h2><span class="section-number">09</span> Changes to This Privacy Policy</h2>
         <p>
-          As an open-source project, any updates to this Privacy Policy will be reflected directly in this document and version-controlled on the GitHub repository with an updated "Last Updated" timestamp.
+          Any updates to this Privacy Policy will be published directly in this document on the project's public GitHub repository with an updated "Last Updated" timestamp.
         </p>
       </section>
 
@@ -508,7 +522,7 @@
       <section>
         <h2><span class="section-number">10</span> Contact & Project Repository</h2>
         <p>
-          If you have questions, feedback, or security inquiries regarding Social Autopilot or this Privacy Policy, you may open an issue on the official GitHub repository:
+          If you have questions, feedback, or security inquiries regarding Social Autopilot or this Privacy Policy, please open an issue on the official GitHub repository:
         </p>
         <ul>
           <li><strong>GitHub Repository:</strong> <a href="https://github.com/siraj-bd/social-autopilot" target="_blank" rel="noopener noreferrer">https://github.com/siraj-bd/social-autopilot</a></li>
