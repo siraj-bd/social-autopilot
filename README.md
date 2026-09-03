@@ -9,6 +9,7 @@
 
 - 🎯 **Extensible Multi-Platform Architecture**:
   - Modular platform adapter architecture supporting multiple social channels.
+  - **Modern LinkedIn REST APIs**: Fully migrated to modern LinkedIn REST endpoints (`POST /rest/posts`, `POST /rest/images`, `POST /rest/videos`) with official `LinkedIn-Version` header support.
   - Independent ON/OFF toggles for **LinkedIn Personal Profile**, **LinkedIn Company Page**, **Facebook Page**, and **Instagram Business**.
   - **Platform-Specific Adaptations**: Tailored hooks, formatting, call-to-actions, and character limit enforcement for each platform (LinkedIn 3,000, Facebook 63,206, Instagram 2,200 chars).
 - 🌐 **English Default & Multilingual Engine**:
@@ -72,9 +73,10 @@
    GEMINI_API_KEY=your_gemini_api_key
    GEMINI_MODEL=gemini-3.6-flash
 
-   # LinkedIn REST API
+   # LinkedIn REST API (Modern Posts, Images & Videos APIs)
    LINKEDIN_AUTHOR_URN=urn:li:person:YOUR_URN
    LINKEDIN_ACCESS_TOKEN=your_token
+   LINKEDIN_API_VERSION=202503
 
    # Meta Graph API (Facebook Page & Instagram)
    META_PAGE_ID=

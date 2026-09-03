@@ -222,6 +222,25 @@ class TestSocialAutopilotPipeline(unittest.TestCase):
         self.assertIn("WIP", caption)
         self.assertIn("NVA", caption)
 
+    def test_16_modern_linkedin_rest_api_headers_and_endpoints(self):
+        """Test that modern LinkedIn REST API headers and versioning are properly configured."""
+        from publisher import get_linkedin_headers
+        from config import settings
+
+        headers = get_linkedin_headers()
+        self.assertIn("LinkedIn-Version", headers)
+        self.assertEqual(headers["LinkedIn-Version"], settings.LINKEDIN_API_VERSION)
+        self.assertEqual(headers["X-Restli-Protocol-Version"], "2.0.0")
+        self.assertEqual(headers["Content-Type"], "application/json")
+        self.assertTrue(headers["Authorization"].startswith("Bearer "))
+
+    def test_17_linkedin_company_blocked_and_credentials_isolation(self):
+        """Test that missing or placeholder company URN raises explicit ValueError safely."""
+        from publisher import _publish_to_linkedin_core
+
+        with self.assertRaises(ValueError):
+            _publish_to_linkedin_core("urn:li:organization:<YOUR_ORG_ID>", "Test Caption", "text_only")
+
 
 if __name__ == "__main__":
     unittest.main()

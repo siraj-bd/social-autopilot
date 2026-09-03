@@ -105,6 +105,7 @@ class Settings:
     # LinkedIn REST API
     LINKEDIN_AUTHOR_URN: str = os.getenv("LINKEDIN_AUTHOR_URN", "")
     LINKEDIN_ACCESS_TOKEN: str = os.getenv("LINKEDIN_ACCESS_TOKEN", "")
+    LINKEDIN_API_VERSION: str = os.getenv("LINKEDIN_API_VERSION", "202503")
 
     # Account ON/OFF Toggles (Environment-based with sensible defaults)
     ENABLE_LINKEDIN_PERSONAL: bool = os.getenv("ENABLE_LINKEDIN_PERSONAL", "true").lower() in ["true", "1", "yes"]

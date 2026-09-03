@@ -130,8 +130,139 @@ def is_valid_urn(urn: str) -> bool:
     return urn.startswith("urn:li:person:") or urn.startswith("urn:li:organization:")
 
 
+def get_linkedin_headers() -> dict:
+    """Returns official required headers for modern LinkedIn REST API requests."""
+    return {
+        "Authorization": f"Bearer {settings.LINKEDIN_ACCESS_TOKEN}",
+        "Content-Type": "application/json",
+        "LinkedIn-Version": settings.LINKEDIN_API_VERSION,
+        "X-Restli-Protocol-Version": "2.0.0"
+    }
+
+
+def _upload_linkedin_image(author_urn: str, image_path: Path) -> str:
+    """
+    Initializes upload and transfers image binary using modern LinkedIn Images REST API.
+    Endpoint: POST https://api.linkedin.com/rest/images?action=initializeUpload
+    Returns: urn:li:image:...
+    """
+    init_url = "https://api.linkedin.com/rest/images?action=initializeUpload"
+    init_payload = {
+        "initializeUploadRequest": {
+            "owner": author_urn
+        }
+    }
+    resp = requests.post(init_url, headers=get_linkedin_headers(), json=init_payload, timeout=30)
+    resp_data = resp.json() if resp.text else {}
+    if resp.status_code >= 400:
+        if resp.status_code == 403 and "organization" in author_urn:
+            raise RuntimeError(
+                f"LinkedIn Company Page Image Init 403 Access Denied: {resp_data}। "
+                f"নিশ্চিত করুন যে আপনার লিঙ্কডইন অ্যাপে 'w_organization_social' অনুমোদন রয়েছে এবং আপনি পেজের অ্যাডমিন।"
+            )
+        raise RuntimeError(f"LinkedIn Image InitializeUpload ব্যর্থ (HTTP {resp.status_code}): {resp_data}")
+
+    upload_url = resp_data["value"]["uploadUrl"]
+    image_urn = resp_data["value"]["image"]
+
+    with open(image_path, "rb") as f:
+        up_resp = requests.put(
+            upload_url,
+            data=f,
+            headers={
+                "Authorization": f"Bearer {settings.LINKEDIN_ACCESS_TOKEN}",
+                "Content-Type": "image/png"
+            },
+            timeout=120
+        )
+    if up_resp.status_code >= 400:
+        raise RuntimeError(f"LinkedIn Image Binary Upload ব্যর্থ (HTTP {up_resp.status_code})")
+
+    logger.info(f"✅ LinkedIn ইমেজ আপলোড সফল: {image_urn}")
+    return image_urn
+
+
+def _upload_linkedin_video(author_urn: str, video_path: Path) -> str:
+    """
+    Initializes, uploads chunks, and finalizes video using modern LinkedIn Videos REST API.
+    Endpoints:
+      - Init: POST https://api.linkedin.com/rest/videos?action=initializeUpload
+      - Part PUT: PUT <uploadUrl>
+      - Finalize: POST https://api.linkedin.com/rest/videos?action=finalizeUpload
+    Returns: urn:li:video:...
+    """
+    file_size = video_path.stat().st_size
+    init_url = "https://api.linkedin.com/rest/videos?action=initializeUpload"
+    init_payload = {
+        "initializeUploadRequest": {
+            "owner": author_urn,
+            "fileSizeBytes": file_size,
+            "uploadCaptions": False,
+            "uploadThumbnail": False
+        }
+    }
+    resp = requests.post(init_url, headers=get_linkedin_headers(), json=init_payload, timeout=30)
+    resp_data = resp.json() if resp.text else {}
+    if resp.status_code >= 400:
+        if resp.status_code == 403 and "organization" in author_urn:
+            raise RuntimeError(
+                f"LinkedIn Company Page Video Init 403 Access Denied: {resp_data}। "
+                f"নিশ্চিত করুন যে আপনার লিঙ্কডইন অ্যাপে 'w_organization_social' অনুমোদন রয়েছে এবং আপনি পেজের অ্যাডমিন।"
+            )
+        raise RuntimeError(f"LinkedIn Video InitializeUpload ব্যর্থ (HTTP {resp.status_code}): {resp_data}")
+
+    video_urn = resp_data["value"]["video"]
+    upload_token = resp_data["value"].get("uploadToken", "")
+    instructions = resp_data["value"]["uploadInstructions"]
+
+    uploaded_part_ids = []
+    with open(video_path, "rb") as f:
+        for part in instructions:
+            upload_url = part["uploadUrl"]
+            first_byte = part["firstByte"]
+            last_byte = part["lastByte"]
+            part_size = last_byte - first_byte + 1
+            f.seek(first_byte)
+            chunk_data = f.read(part_size)
+
+            up_resp = requests.put(
+                upload_url,
+                data=chunk_data,
+                headers={
+                    "Authorization": f"Bearer {settings.LINKEDIN_ACCESS_TOKEN}",
+                    "Content-Type": "application/octet-stream"
+                },
+                timeout=180
+            )
+            if up_resp.status_code >= 400:
+                raise RuntimeError(f"LinkedIn Video Part Upload ব্যর্থ (HTTP {up_resp.status_code})")
+
+            etag = up_resp.headers.get("ETag") or up_resp.headers.get("etag") or ""
+            if etag:
+                uploaded_part_ids.append(etag)
+
+    # Finalize Upload
+    finalize_url = "https://api.linkedin.com/rest/videos?action=finalizeUpload"
+    finalize_payload = {
+        "finalizeUploadRequest": {
+            "video": video_urn,
+            "uploadToken": upload_token,
+            "uploadedPartIds": uploaded_part_ids
+        }
+    }
+    fin_resp = requests.post(finalize_url, headers=get_linkedin_headers(), json=finalize_payload, timeout=30)
+    if fin_resp.status_code >= 400:
+        raise RuntimeError(f"LinkedIn Video Finalize ব্যর্থ (HTTP {fin_resp.status_code}): {fin_resp.text}")
+
+    logger.info(f"✅ LinkedIn ভিডিও আপলোড ও ফাইনালাইজেশন সফল: {video_urn}")
+    return video_urn
+
+
 def _publish_to_linkedin_core(author_urn: str, caption: str, content_type: str, media_path: Optional[Path] = None, platform_key: str = "linkedin_personal") -> dict:
-    """Core Publisher for LinkedIn Personal Profile or Company Organization."""
+    """
+    Publishes text, image, or video to LinkedIn Personal Profile or Company Page
+    using the modern LinkedIn Posts REST API (POST https://api.linkedin.com/rest/posts).
+    """
     if not author_urn or not settings.LINKEDIN_ACCESS_TOKEN:
         raise ValueError("LINKEDIN_AUTHOR_URN বা LINKEDIN_ACCESS_TOKEN অনুপস্থিত")
 
@@ -143,112 +274,68 @@ def _publish_to_linkedin_core(author_urn: str, caption: str, content_type: str, 
 
     validate_character_limit(caption, platform_key)
 
-    headers = {
-        "Authorization": f"Bearer {settings.LINKEDIN_ACCESS_TOKEN}",
-        "Content-Type": "application/json",
-        "X-Restli-Protocol-Version": "2.0.0"
-    }
-
-    # For text-only post
-    if content_type == "text_only" or not media_path:
-        url = "https://api.linkedin.com/v2/ugcPosts"
-        payload = {
-            "author": author_urn,
-            "lifecycleState": "PUBLISHED",
-            "specificContent": {
-                "com.linkedin.ugc.ShareContent": {
-                    "shareCommentary": {"text": caption},
-                    "shareMediaCategory": "NONE"
+    # Handle Media Uploads via modern REST endpoints
+    content_obj = None
+    if media_path and media_path.exists():
+        if content_type == "image":
+            image_urn = _upload_linkedin_image(author_urn, media_path)
+            content_obj = {
+                "media": {
+                    "id": image_urn,
+                    "title": media_path.stem
                 }
-            },
-            "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
-        }
-        resp = requests.post(url, headers=headers, json=payload, timeout=30)
-        resp_data = resp.json() if resp.text else {"status": resp.status_code}
-        if resp.status_code >= 400:
-            if resp.status_code == 403 and "organization" in author_urn:
-                raise RuntimeError(
-                    f"LinkedIn Company Page 403 Access Denied: {resp_data}। "
-                    f"নিশ্চিত করুন যে আপনার লিঙ্কডইন অ্যাপে 'Community Management API' / 'w_organization_social' অনুমোদন রয়েছে এবং আপনি পেজটির অ্যাডমিন।"
-                )
-            raise RuntimeError(f"LinkedIn API ত্রুটি: {resp_data}")
-        post_id = resp_data.get("id", "")
-        post_url = f"https://www.linkedin.com/feed/update/{post_id}/" if post_id else ""
-        logger.info(f"✅ LinkedIn ({author_urn})-এ পোস্ট সফল হয়েছে! Post ID: {post_id}")
-        if post_url:
-            logger.info(f"🔗 LinkedIn Post URL: {post_url}")
-        resp_data["post_url"] = post_url
-        return resp_data
+            }
+        elif content_type == "video":
+            video_urn = _upload_linkedin_video(author_urn, media_path)
+            content_obj = {
+                "media": {
+                    "id": video_urn,
+                    "title": media_path.stem
+                }
+            }
 
-    # For Image/Video upload workflow
-    upload_type = "image" if content_type == "image" else "video"
-    recipe = "urn:li:digitalmediaRecipe:feedshare-image" if upload_type == "image" else "urn:li:digitalmediaRecipe:feedshare-video"
-
-    # Step 1: Register Upload
-    register_url = "https://api.linkedin.com/v2/assets?action=registerUpload"
-    register_payload = {
-        "registerUploadRequest": {
-            "recipes": [recipe],
-            "owner": author_urn,
-            "serviceRelationships": [{"relationshipType": "OWNER", "identifier": "urn:li:userGeneratedContent"}]
-        }
-    }
-    reg_resp = requests.post(register_url, headers=headers, json=register_payload, timeout=30)
-    reg_data = reg_resp.json()
-    if reg_resp.status_code >= 400:
-        if reg_resp.status_code == 403 and "organization" in author_urn:
-            raise RuntimeError(
-                f"LinkedIn Company Page Asset Registration 403 Access Denied: {reg_data}। "
-                f"নিশ্চিত করুন যে আপনার লিঙ্কডইন অ্যাপে 'w_organization_social' অনুমোদন রয়েছে।"
-            )
-        raise RuntimeError(f"LinkedIn Asset Registration ব্যর্থ: {reg_data}")
-
-    asset_urn = reg_data["value"]["asset"]
-    upload_url = reg_data["value"]["uploadMechanism"]["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"]["uploadUrl"]
-
-    # Step 2: Upload Media Binary
-    with open(media_path, "rb") as f:
-        up_resp = requests.put(upload_url, data=f, headers={"Authorization": f"Bearer {settings.LINKEDIN_ACCESS_TOKEN}"}, timeout=120)
-    if up_resp.status_code >= 400:
-        raise RuntimeError(f"LinkedIn Media Upload ব্যর্থ: {up_resp.status_code}")
-
-    # Step 3: Create Post with Media Asset
-    post_url_endpoint = "https://api.linkedin.com/v2/ugcPosts"
-    category = "IMAGE" if upload_type == "image" else "VIDEO"
+    # Modern LinkedIn Posts API Payload Schema
     post_payload = {
         "author": author_urn,
-        "lifecycleState": "PUBLISHED",
-        "specificContent": {
-            "com.linkedin.ugc.ShareContent": {
-                "shareCommentary": {"text": caption},
-                "shareMediaCategory": category,
-                "media": [{
-                    "status": "READY",
-                    "description": {"text": caption[:200]},
-                    "media": asset_urn,
-                    "title": {"text": media_path.stem}
-                }]
-            }
+        "commentary": caption,
+        "visibility": "PUBLIC",
+        "distribution": {
+            "feedDistribution": "MAIN_FEED",
+            "targetEntities": [],
+            "thirdPartyDistributionChannels": []
         },
-        "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
+        "lifecycleState": "PUBLISHED",
+        "isReshareDisabledByAuthor": False
     }
-    resp = requests.post(post_url_endpoint, headers=headers, json=post_payload, timeout=30)
-    resp_data = resp.json() if resp.text else {"status": resp.status_code}
+    if content_obj:
+        post_payload["content"] = content_obj
+
+    posts_url = "https://api.linkedin.com/rest/posts"
+    resp = requests.post(posts_url, headers=get_linkedin_headers(), json=post_payload, timeout=30)
+    resp_data = resp.json() if resp.text else {}
+
     if resp.status_code >= 400:
         if resp.status_code == 403 and "organization" in author_urn:
             raise RuntimeError(
-                f"LinkedIn Company Page Media Post 403 Access Denied: {resp_data}। "
-                f"নিশ্চিত করুন যে আপনার লিঙ্কডইন অ্যাপে 'w_organization_social' অনুমোদন রয়েছে।"
+                f"LinkedIn Company Page 403 Access Denied: {resp_data}। "
+                f"নিশ্চিত করুন যে আপনার লিঙ্কডইন অ্যাপে 'Community Management API' / 'w_organization_social' অনুমোদন রয়েছে এবং আপনি পেজটির অ্যাডমিন।"
             )
-        raise RuntimeError(f"LinkedIn Media Post প্রকাশ ব্যর্থ: {resp_data}")
+        raise RuntimeError(f"LinkedIn Posts API ত্রুটি (HTTP {resp.status_code}): {resp_data or resp.text}")
 
-    post_id = resp_data.get("id", "")
-    post_url = f"https://www.linkedin.com/feed/update/{post_id}/" if post_id else ""
-    logger.info(f"✅ LinkedIn ({author_urn})-এ মিডিয়া পোস্ট সফল হয়েছে! ID: {post_id}")
+    # LinkedIn Posts API returns 201 Created with x-restli-id header containing the post URN (urn:li:share:... or urn:li:ugcPost:...)
+    post_urn = resp.headers.get("x-restli-id") or resp.headers.get("x-linkedin-id") or resp_data.get("id", "")
+    post_url = f"https://www.linkedin.com/feed/update/{post_urn}/" if post_urn else ""
+
+    logger.info(f"✅ LinkedIn ({author_urn})-এ পোস্ট সফল হয়েছে! Post URN: {post_urn}")
     if post_url:
         logger.info(f"🔗 LinkedIn Post URL: {post_url}")
-    resp_data["post_url"] = post_url
-    return resp_data
+
+    result = {
+        "id": post_urn,
+        "post_url": post_url,
+        "status_code": resp.status_code
+    }
+    return result
 
 
 def publish_to_linkedin(caption: str, content_type: str, media_path: Optional[Path] = None) -> dict:

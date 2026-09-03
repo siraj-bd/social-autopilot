@@ -431,15 +431,15 @@
           Social Autopilot connects directly to user-authorized external APIs based on the platforms and services enabled in the user's configuration. Each platform integration operates independently and adheres to platform-specific character limits, media rules, and permission scopes.
         </p>
 
-        <h3>1. LinkedIn API (LinkedIn REST / Posts & Media Publishing API)</h3>
+        <h3>1. LinkedIn REST API (Posts, Images & Videos APIs)</h3>
         <p>
-          When LinkedIn publishing is enabled, Social Autopilot communicates directly with LinkedIn's official REST API endpoints:
+          When LinkedIn publishing is enabled, Social Autopilot communicates directly with LinkedIn's official REST API endpoints using modern versioned endpoints (<code>POST /rest/posts</code>, <code>POST /rest/images?action=initializeUpload</code>, and <code>POST /rest/videos?action=initializeUpload</code>) with the required <code>LinkedIn-Version</code> header:
         </p>
         <ul>
-          <li><strong>Personal Profile Publishing:</strong> Publishes member posts and media using the authenticated member's Person URN (<code>urn:li:person:...</code>) and standard member sharing permissions (<code>w_member_social</code>, <code>openid</code>, <code>profile</code>, <code>email</code>).</li>
+          <li><strong>Personal Profile Publishing:</strong> Publishes member posts, images, and videos using the authenticated member's Person URN (<code>urn:li:person:...</code>) and standard member sharing permissions (<code>w_member_social</code>, <code>openid</code>, <code>profile</code>, <code>email</code>).</li>
           <li><strong>Organization / Company Page Publishing:</strong> Publishes organization posts using the target Organization URN (<code>urn:li:organization:...</code>). Requires the application to have approved organization permissions (<code>w_organization_social</code> / Community Management API) and requires the authenticated member to hold an administrative role on the LinkedIn Page. When organization authorization is missing, organization publishing is blocked and fails fast with a clear error.</li>
           <li><strong>Data Transmitted:</strong> Post commentary and caption text, uploaded media binaries (PNG graphic cards / MP4 vertical videos), and the author Uniform Resource Name (URN).</li>
-          <li><strong>Data Received:</strong> LinkedIn post identifiers (e.g., <code>urn:li:share:...</code>) and HTTP status codes to record publication state locally.</li>
+          <li><strong>Data Received:</strong> LinkedIn post identifiers (e.g., <code>urn:li:share:...</code> or <code>urn:li:ugcPost:...</code>) and HTTP status codes to record publication state locally.</li>
           <li><strong>No Scraping or Harvesting:</strong> Social Autopilot does not scrape, index, or store LinkedIn user feeds, connections, messages, or member directory data.</li>
         </ul>
 
