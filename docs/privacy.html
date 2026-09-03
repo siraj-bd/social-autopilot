@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — Social Autopilot</title>
+  <meta name="description" content="Privacy Policy for Social Autopilot: Automated Multi-Format Social Media Scheduler.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0b0f19;
+      --bg-surface: #111827;
+      --bg-card: rgba(17, 24, 39, 0.75);
+      --border-color: #1f293d;
+      --border-glow: rgba(59, 130, 246, 0.3);
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-purple: #8b5cf6;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border-color);
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      line-height: 1.7;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Ambient background gradient glow */
+    body::before {
+      content: "";
+      position: fixed;
+      top: -20%;
+      left: 20%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, rgba(11, 15, 25, 0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      bottom: -10%;
+      right: 10%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, rgba(11, 15, 25, 0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    header {
+      padding: 50px 0 30px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 40px;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .logo-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 20px;
+      color: #ffffff;
+      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+    }
+
+    .logo-text h1 {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(90deg, #ffffff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .logo-text span {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+      display: block;
+    }
+
+    .header-tag {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 6px 12px;
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid var(--border-glow);
+      border-radius: 999px;
+      color: var(--accent-cyan);
+    }
+
+    .doc-meta {
+      display: flex;
+      gap: 20px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      flex-wrap: wrap;
+    }
+
+    .doc-meta strong {
+      color: var(--text-primary);
+    }
+
+    /* Content Layout */
+    .content-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 40px;
+      box-shadow: var(--shadow-card);
+      margin-bottom: 60px;
+    }
+
+    @media (max-width: 640px) {
+      .content-card {
+        padding: 24px;
+      }
+    }
+
+    /* Quick Summary Callout */
+    .summary-box {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(16, 185, 129, 0.05));
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin-bottom: 36px;
+    }
+
+    .summary-box h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .summary-box p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    /* Typography & Sections */
+    section {
+      margin-bottom: 40px;
+    }
+
+    section:last-child {
+      margin-bottom: 0;
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 16px;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    h2 .section-number {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--accent-blue);
+      background: rgba(59, 130, 246, 0.1);
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    p {
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    ul, ol {
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      padding-left: 24px;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    li strong {
+      color: var(--text-primary);
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Table */
+    .table-wrapper {
+      overflow-x: auto;
+      margin: 20px 0;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-primary);
+      font-weight: 600;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      color: var(--text-secondary);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Links */
+    a {
+      color: var(--accent-blue);
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+
+    a:hover {
+      color: var(--accent-cyan);
+      text-decoration: underline;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border-color);
+      padding: 30px 0 60px;
+      text-align: center;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div class="brand-row">
+        <a href="https://github.com/siraj-bd/social-autopilot" class="logo-container">
+          <div class="logo-badge">SA</div>
+          <div class="logo-text">
+            <h1>Social Autopilot</h1>
+            <span>Self-Hosted Multi-Format Social Media Scheduler</span>
+          </div>
+        </a>
+        <div class="header-tag">Open Source &bull; Self-Hosted</div>
+      </div>
+      <div class="doc-meta">
+        <div><strong>Effective Date:</strong> September 3, 2026</div>
+        <div><strong>Last Updated:</strong> September 3, 2026</div>
+        <div><strong>License:</strong> MIT Open Source</div>
+      </div>
+    </header>
+
+    <main class="content-card">
+
+      <div class="summary-box">
+        <h3>🛡️ Quick Privacy Summary</h3>
+        <p>
+          <strong>Social Autopilot is a 100% self-hosted, local-first automation application.</strong> 
+          We do not operate central user tracking databases, telemetry servers, or data brokerage systems. All configuration keys, OAuth tokens, content queues, and generated media assets reside exclusively on the user's own local filesystem and communicate directly with user-authorized third-party APIs (such as LinkedIn and Meta).
+        </p>
+      </div>
+
+      <!-- Section 1 -->
+      <section>
+        <h2><span class="section-number">01</span> What Social Autopilot Is</h2>
+        <p>
+          Social Autopilot is an open-source, automated multi-format social media scheduling and publishing system. It allows developers, creators, and engineering leaders to generate and schedule technical posts, infographics, and short vertical videos for publishing to social platforms like <strong>LinkedIn</strong> and <strong>Meta (Facebook Page / Instagram)</strong>.
+        </p>
+      </section>
+
+      <!-- Section 2 -->
+      <section>
+        <h2><span class="section-number">02</span> Self-Hosted & Local-First Architecture</h2>
+        <p>
+          Unlike Software-as-a-Service (SaaS) platforms, Social Autopilot runs directly on your local machine, server, or private cloud instance.
+        </p>
+        <ul>
+          <li><strong>No Remote Server Database:</strong> Social Autopilot has no central cloud server that collects or stores your login credentials or personal profile data.</li>
+          <li><strong>Local Configuration Storage:</strong> All environment variables and access tokens are loaded from local environment files (<code>.env</code>) on the host machine.</li>
+          <li><strong>Local Queue:</strong> All scheduled tasks and publication statuses are stored locally in a CSV file (<code>schedule.csv</code>).</li>
+          <li><strong>Local Media Rendering:</strong> Media assets (cards, voiceovers, MP4 videos) are generated and stored locally in the <code>output/</code> directory.</li>
+        </ul>
+      </section>
+
+      <!-- Section 3 -->
+      <section>
+        <h2><span class="section-number">03</span> Information Processed by Social Autopilot</h2>
+        <p>
+          Depending on how you configure and run Social Autopilot, the following categories of data are processed locally on your system:
+        </p>
+        
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Data Category</th>
+                <th>Storage Location</th>
+                <th>Purpose & Handling</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>API Credentials & Tokens</strong></td>
+                <td>Local <code>.env</code> file</td>
+                <td>Stores user-provided LinkedIn Access Tokens, Meta Page Tokens, and Google Gemini API keys. Strictly excluded from version control via <code>.gitignore</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Scheduled Content & Captions</strong></td>
+                <td>Local <code>schedule.csv</code></td>
+                <td>Stores topic titles, hashtags, custom captions, execution timestamps, and per-platform publication status logs.</td>
+              </tr>
+              <tr>
+                <td><strong>Generated Media Assets</strong></td>
+                <td>Local <code>output/</code> directory</td>
+                <td>Stores generated PNG graphic cards, MP3 voiceover files, and MP4 vertical video files.</td>
+              </tr>
+              <tr>
+                <td><strong>Execution Logs</strong></td>
+                <td>Local <code>autopilot.log</code></td>
+                <td>Stores timestamped task status logs, error messages, and external publication URLs for debugging.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section 4 -->
+      <section>
+        <h2><span class="section-number">04</span> Third-Party Services & API Interactions</h2>
+        <p>
+          Social Autopilot connects directly to the following external APIs using the credentials you configure:
+        </p>
+
+        <h3>1. LinkedIn API (LinkedIn REST / UGC Posts API)</h3>
+        <p>
+          When LinkedIn publishing is enabled, Social Autopilot communicates directly with LinkedIn's official REST API endpoints (<code>https://api.linkedin.com/v2/</code>):
+        </p>
+        <ul>
+          <li><strong>Permissions Used:</strong> <code>w_member_social</code> (for personal profile posts) or <code>w_organization_social</code> / Community Management API (for company page posts).</li>
+          <li><strong>Data Transmitted:</strong> Post caption text, uploaded media binaries (PNG/MP4), and the author Uniform Resource Name (URN: <code>urn:li:person:...</code> or <code>urn:li:organization:...</code>).</li>
+          <li><strong>Data Received:</strong> LinkedIn post identifiers (e.g. <code>urn:li:share:...</code>) and status codes to record publication success in your local schedule log.</li>
+          <li><strong>No Scraping:</strong> Social Autopilot does not scrape, harvest, or store LinkedIn user feeds, connections, or contact lists.</li>
+        </ul>
+
+        <h3>2. Meta Graph API (Facebook Page & Instagram Business)</h3>
+        <ul>
+          <li><strong>Permissions Used:</strong> <code>pages_manage_posts</code>, <code>pages_read_engagement</code>, and Instagram Content Publishing.</li>
+          <li><strong>Data Transmitted:</strong> Page captions, images, and videos published directly to the user's authorized Facebook Page or Instagram Business container.</li>
+          <li><strong>Data Received:</strong> Post IDs and publication status confirmations.</li>
+        </ul>
+
+        <h3>3. Google Gemini API (Optional AI Content Engine)</h3>
+        <ul>
+          <li><strong>Usage:</strong> Used to generate technical post drafts, takeaway points, and video scripts based on user-provided keywords or topics.</li>
+          <li><strong>Data Transmitted:</strong> Only the topic title, hashtags, target persona, and content type parameters. User personal account data is not sent to Gemini.</li>
+          <li><strong>Bypass:</strong> When you supply an exact custom caption (<code>--caption</code>), Gemini API generation is completely bypassed.</li>
+        </ul>
+
+        <h3>4. Microsoft Edge TTS (Local Voiceover Synthesis)</h3>
+        <ul>
+          <li><strong>Usage:</strong> Synthesizes neural voiceover audio for vertical videos without requiring paid cloud API keys.</li>
+          <li><strong>Data Transmitted:</strong> Text string of the voiceover narration script.</li>
+        </ul>
+      </section>
+
+      <!-- Section 5 -->
+      <section>
+        <h2><span class="section-number">05</span> Cookies, Analytics, and Tracking</h2>
+        <p>
+          <strong>Zero Web Tracking:</strong> Social Autopilot contains no web cookies, tracking pixels, telemetric beacons, or third-party analytics SDKs (such as Google Analytics or Mixpanel). We do not track your IP address, device fingerprints, or runtime activity.
+        </p>
+      </section>
+
+      <!-- Section 6 -->
+      <section>
+        <h2><span class="section-number">06</span> Data Retention and User Deletion Rights</h2>
+        <p>
+          Because all data is stored locally on your machine:
+        </p>
+        <ul>
+          <li><strong>Immediate Deletion:</strong> You can delete all local data at any time by clearing the <code>schedule.csv</code> file, deleting the <code>output/</code> directory, or removing your <code>.env</code> files.</li>
+          <li><strong>Revoking Access:</strong> You can revoke Social Autopilot's access to your LinkedIn or Facebook accounts at any time through your LinkedIn Developer App settings or Meta App Permissions. Once revoked, Social Autopilot cannot publish on your behalf.</li>
+        </ul>
+      </section>
+
+      <!-- Section 7 -->
+      <section>
+        <h2><span class="section-number">07</span> Security Measures</h2>
+        <p>
+          Social Autopilot enforces strict local security best practices:
+        </p>
+        <ul>
+          <li><strong>Git Protection:</strong> The repository's <code>.gitignore</code> strictly excludes all <code>.env*</code> credential files, virtual environments, runtime logs, and media artifacts from being committed to source control.</li>
+          <li><strong>Credential Isolation:</strong> No OAuth tokens or API secrets are hardcoded in application scripts or public documentation.</li>
+          <li><strong>Atomic File Operations:</strong> Task queue updates use atomic temporary file replacement to prevent data corruption during power interruptions.</li>
+        </ul>
+      </section>
+
+      <!-- Section 8 -->
+      <section>
+        <h2><span class="section-number">08</span> Children's Privacy</h2>
+        <p>
+          Social Autopilot is designed for developers, engineering professionals, and organizations. It is not intended for use by individuals under the age of 13.
+        </p>
+      </section>
+
+      <!-- Section 9 -->
+      <section>
+        <h2><span class="section-number">09</span> Changes to This Policy</h2>
+        <p>
+          As an open-source project, any updates to this Privacy Policy will be reflected directly in this document and version-controlled on the GitHub repository with an updated "Last Updated" timestamp.
+        </p>
+      </section>
+
+      <!-- Section 10 -->
+      <section>
+        <h2><span class="section-number">10</span> Contact & Project Repository</h2>
+        <p>
+          If you have questions, feedback, or security inquiries regarding Social Autopilot or this Privacy Policy, you may open an issue on the official GitHub repository:
+        </p>
+        <ul>
+          <li><strong>GitHub Repository:</strong> <a href="https://github.com/siraj-bd/social-autopilot" target="_blank" rel="noopener noreferrer">https://github.com/siraj-bd/social-autopilot</a></li>
+          <li><strong>Maintainer / Committer:</strong> <a href="https://github.com/siraj-bd" target="_blank" rel="noopener noreferrer">@siraj-bd</a></li>
+          <li><strong>Project Issues:</strong> <a href="https://github.com/siraj-bd/social-autopilot/issues" target="_blank" rel="noopener noreferrer">https://github.com/siraj-bd/social-autopilot/issues</a></li>
+        </ul>
+      </section>
+
+    </main>
+
+    <footer>
+      <p>&copy; 2026 Social Autopilot. Released under the MIT Open Source License.</p>
+      <div class="footer-links">
+        <a href="https://github.com/siraj-bd/social-autopilot">GitHub Repository</a>
+        <a href="https://github.com/siraj-bd/social-autopilot#readme">Documentation</a>
+        <a href="https://github.com/siraj-bd/social-autopilot/issues">Support</a>
+      </div>
+    </footer>
+  </div>
+
+</body>
+</html>
