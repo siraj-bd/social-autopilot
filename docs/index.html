@@ -423,15 +423,15 @@
           Social Autopilot connects directly to the following external APIs using the credentials you configure:
         </p>
 
-        <h3>1. LinkedIn API (LinkedIn REST / UGC Posts API)</h3>
+        <h3>1. LinkedIn API (LinkedIn REST / Posts & Media API)</h3>
         <p>
           When LinkedIn publishing is enabled, Social Autopilot communicates directly with LinkedIn's official REST API endpoints (<code>https://api.linkedin.com/v2/</code>):
         </p>
         <ul>
-          <li><strong>Permissions Used:</strong> <code>w_member_social</code> (for personal profile posts) or <code>w_organization_social</code> / Community Management API (for company page posts).</li>
-          <li><strong>Data Transmitted:</strong> Post caption text, uploaded media binaries (PNG/MP4), and the author Uniform Resource Name (URN: <code>urn:li:person:...</code> or <code>urn:li:organization:...</code>).</li>
-          <li><strong>Data Received:</strong> LinkedIn post identifiers (e.g. <code>urn:li:share:...</code>) and status codes to record publication success in your local schedule log.</li>
-          <li><strong>No Scraping:</strong> Social Autopilot does not scrape, harvest, or store LinkedIn user feeds, connections, or contact lists.</li>
+          <li><strong>Permissions & Scopes:</strong> <code>w_member_social</code>, <code>openid</code>, <code>profile</code>, <code>email</code> (for personal profile publishing) and optional <code>w_organization_social</code> / Community Management API (for authorized organization publishing).</li>
+          <li><strong>Data Transmitted:</strong> Post commentary and caption text, uploaded media binaries (PNG graphic cards / MP4 vertical videos), and the author Uniform Resource Name (URN: <code>urn:li:person:...</code> or <code>urn:li:organization:...</code>).</li>
+          <li><strong>Data Received:</strong> LinkedIn post identifiers (e.g. <code>urn:li:share:...</code>) and HTTP status codes to record publication success in your local schedule log.</li>
+          <li><strong>No Scraping or Harvesting:</strong> Social Autopilot does not scrape, harvest, index, or store LinkedIn user feeds, profile connections, direct messages, or contact lists.</li>
         </ul>
 
         <h3>2. Meta Graph API (Facebook Page & Instagram Business)</h3>
